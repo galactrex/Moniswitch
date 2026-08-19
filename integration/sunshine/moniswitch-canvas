@@ -1,0 +1,165 @@
+#!/bin/sh
+set -eu
+
+output_name="MONISWITCH"
+instance="${HYPRLAND_INSTANCE_INDEX:-0}"
+physical_outputs="$HOME/.local/state/Moniswitch/canvas-physical-outputs"
+
+usage() {
+    echo "usage: moniswitch-canvas start WIDTH HEIGHT FPS | stop | pin PIN | status" >&2
+    exit 2
+}
+
+valid_number() {
+    case "$1" in
+        ''|*[!0-9]*) return 1 ;;
+        *) return 0 ;;
+    esac
+}
+
+output_exists() {
+    hyprctl -i "$instance" monitors all -j | grep -q "\"name\": \"$output_name\""
+}
+
+active_output_names() {
+    hyprctl -i "$instance" monitors -j | awk '
+        /^    "name":/ {
+            name = $0
+            sub(/^.*"name": *"/, "", name)
+            sub(/".*$/, "", name)
+            print name
+        }
+    '
+}
+
+disable_physical_outputs() {
+    mkdir -p "$(dirname "$physical_outputs")"
+    active_outputs="$physical_outputs.active"
+    active_output_names > "$active_outputs"
+    : > "$physical_outputs"
+    while IFS= read -r name; do
+        [ "$name" = "$output_name" ] && continue
+        printf '%s\n' "$name" >> "$physical_outputs"
+        if ! hyprctl -i "$instance" eval \
+            "hl.monitor({ output = [[$name]], disabled = true })" >/dev/null 2>&1; then
+            hyprctl -i "$instance" keyword monitor "$name,disable" >/dev/null
+        fi
+    done < "$active_outputs"
+    rm -f "$active_outputs"
+
+    remaining=$(active_output_names | grep -Fvx "$output_name" || true)
+    [ -z "$remaining" ] || {
+        echo "Physical outputs could not be suspended for capture." >&2
+        return 1
+    }
+}
+
+restore_physical_outputs() {
+    if [ -r "$physical_outputs" ]; then
+        while IFS= read -r name; do
+            [ -n "$name" ] || continue
+            if ! hyprctl -i "$instance" eval \
+                "hl.monitor({ output = [[$name]], mode = [[preferred]], position = [[auto]], scale = 1 })" \
+                >/dev/null 2>&1; then
+                hyprctl -i "$instance" keyword monitor "$name,preferred,auto,1" >/dev/null 2>&1 || true
+            fi
+        done < "$physical_outputs"
+        rm -f "$physical_outputs"
+        # Reapply the user's configured layout after re-enabling each output.
+        hyprctl -i "$instance" reload >/dev/null 2>&1 || true
+    fi
+}
+
+rebind_input_receiver() {
+    # Waynergy snapshots the compositor's output list when it starts. Rebind it
+    # after every topology change so pointer coordinates target the live output
+    # instead of a removed physical display or canvas.
+    systemctl --user try-restart moniswitch-waynergy.service >/dev/null 2>&1 || true
+}
+
+start_canvas() {
+    width="$1"
+    height="$2"
+    fps="$3"
+    valid_number "$width" && valid_number "$height" && valid_number "$fps" || usage
+
+    if ! output_exists; then
+        hyprctl -i "$instance" output create headless "$output_name" >/dev/null
+    fi
+
+    if ! hyprctl -i "$instance" eval "hl.monitor({ output = [[$output_name]], mode = [[$width"x"$height@$fps]], position = [[0x0]], scale = 1 })" >/dev/null 2>&1; then
+        hyprctl -i "$instance" keyword monitor "$output_name,$width"x"$height@$fps,0x0,1" >/dev/null
+    fi
+
+    config="$HOME/.config/Moniswitch/sunshine/sunshine.conf"
+    # Sunshine 2026 currently filters metadata-less Hyprland headless outputs
+    # at capture time and falls back to a physical display. Make the canvas the
+    # sole active output while streaming, so index 0 is deterministic.
+    sed -i "s/^output_name *=.*/output_name = 0/" "$config"
+
+    hyprctl -i "$instance" dispatch moveworkspacetomonitor 1 "$output_name" >/dev/null 2>&1 || true
+    hyprctl -i "$instance" dispatch focusmonitor "$output_name" >/dev/null 2>&1 || true
+    if ! disable_physical_outputs; then
+        restore_physical_outputs
+        hyprctl -i "$instance" output remove "$output_name" >/dev/null 2>&1 || true
+        rebind_input_receiver
+        exit 1
+    fi
+    rebind_input_receiver
+    if ! systemctl --user start moniswitch-sunshine.service; then
+        restore_physical_outputs
+        hyprctl -i "$instance" output remove "$output_name" >/dev/null 2>&1 || true
+        rebind_input_receiver
+        exit 1
+    fi
+}
+
+stop_canvas() {
+    systemctl --user stop moniswitch-sunshine.service >/dev/null 2>&1 || true
+    restore_physical_outputs
+    if output_exists; then
+        hyprctl -i "$instance" output remove "$output_name" >/dev/null
+    fi
+    rebind_input_receiver
+}
+
+submit_pin() {
+    pin="$1"
+    case "$pin" in
+        [0-9][0-9][0-9][0-9]) ;;
+        *) usage ;;
+    esac
+
+    password_file="$HOME/.local/state/Moniswitch/sunshine-password"
+    [ -r "$password_file" ] || {
+        echo "Sunshine pairing password is missing." >&2
+        exit 1
+    }
+
+    password=$(cat "$password_file")
+    curl --silent --show-error --fail --insecure \
+        --user "moniswitch:$password" \
+        --header "Content-Type: application/json" \
+        --request POST \
+        --data "{\"pin\":\"$pin\",\"name\":\"Moniswitch Windows\"}" \
+        https://localhost:47990/api/pin
+}
+
+case "${1:-}" in
+    start)
+        [ "$#" -eq 4 ] || usage
+        start_canvas "$2" "$3" "$4"
+        ;;
+    stop)
+        [ "$#" -eq 1 ] || usage
+        stop_canvas
+        ;;
+    pin)
+        [ "$#" -eq 2 ] || usage
+        submit_pin "$2"
+        ;;
+    status)
+        systemctl --user is-active moniswitch-sunshine.service
+        ;;
+    *) usage ;;
+esac

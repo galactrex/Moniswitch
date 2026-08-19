@@ -1,0 +1,89 @@
+name: Bug report
+description: Report a reproducible Moniswitch problem without publishing private data.
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Give us the smallest useful version of the problem. Remove addresses, usernames, machine names, local paths, serial numbers, device identifiers, fingerprints, tokens, and unrelated screenshot content.
+  - type: input
+    id: version
+    attributes:
+      label: Moniswitch version
+      description: Use the release tag or executable version. Do not paste a local path.
+      placeholder: "Example: 1.0.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - Display detection or DDC/CI
+        - Input routing
+        - Saved routes or shortcut
+        - Input Link
+        - LAN Canvas
+        - Startup, tray, or interface
+        - Build or packaging
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: windows
+    attributes:
+      label: Windows version
+      options:
+        - Windows 11
+        - Windows 10
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: State the visible result and the exact error text after redaction.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should have happened?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      placeholder: |
+        1. Open...
+        2. Choose...
+        3. Press...
+    validations:
+      required: true
+  - type: textarea
+    id: setup
+    attributes:
+      label: Relevant setup
+      description: Name the connection types and software involved. Monitor models are optional. Never include serial numbers, full hardware IDs, account names, addresses, or private paths.
+      placeholder: "Example: Windows over DisplayPort; second computer over HDMI; direct GPU connections."
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Sanitized diagnostic excerpt
+      description: Include only relevant lines. Do not upload settings, complete logs, keys, certificates, crash dumps, or raw network output.
+      render: text
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Privacy and verification
+      options:
+        - label: I tested the latest official build and searched existing issues.
+          required: true
+        - label: I removed addresses, usernames, machine names, paths, device identifiers, credentials, and unrelated screenshot content.
+          required: true
+        - label: This report contains no private key, token, password, certificate, or full settings file.
+          required: true

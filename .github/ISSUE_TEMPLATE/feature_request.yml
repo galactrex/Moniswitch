@@ -1,0 +1,42 @@
+name: Feature request
+description: Propose a concrete improvement to Moniswitch.
+title: "[Request] "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the setup, the friction, and the result you want. A useful constraint beats a ceremonial paragraph about innovation.
+  - type: textarea
+    id: setup
+    attributes:
+      label: What setup are you using?
+      description: Keep it generic. Do not include addresses, usernames, machine names, serial numbers, device identifiers, or private paths.
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem should Moniswitch solve?
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: What should the result look like?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What have you tried?
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Verification
+      options:
+        - label: I searched existing issues for the same request.
+          required: true
+        - label: I removed private and identifying information from this request.
+          required: true

@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>Moniswitch</AssemblyName>
+    <RootNamespace>Moniswitch</RootNamespace>
+    <ApplicationTitle>Moniswitch</ApplicationTitle>
+    <Product>Moniswitch</Product>
+    <Company>Galactrex</Company>
+    <Authors>Galactrex</Authors>
+    <Copyright>© 2026 Galactrex</Copyright>
+    <ApplicationIcon>assets\Moniswitch.ico</ApplicationIcon>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Moniswitch.SmokeTests" />
+    <Compile Remove="tests\**\*.cs" />
+  </ItemGroup>
+</Project>

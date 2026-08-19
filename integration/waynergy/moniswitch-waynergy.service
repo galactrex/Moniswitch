@@ -1,0 +1,15 @@
+[Unit]
+Description=Moniswitch keyboard and mouse receiver
+After=graphical-session.target network-online.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+Environment=WAYNERGY_CONF_PATH=%h/.config/waynergy
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin
+ExecStart=/usr/bin/env waynergy
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=graphical-session.target

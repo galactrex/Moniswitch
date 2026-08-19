@@ -1,0 +1,19 @@
+sunshine_name = Moniswitch Linux
+# Wayland capture uses Sunshine's numeric output id. The on-demand helper
+# resolves MONISWITCH's current id and updates this value before every start.
+output_name = 0
+capture = wlr
+hevc_mode = 2
+av1_mode = 1
+min_log_level = 2
+system_tray = disabled
+upnp = disabled
+origin_web_ui_allowed = pc
+keyboard = disabled
+mouse = disabled
+controller = disabled
+file_apps = @HOME@/.config/Moniswitch/sunshine/apps.json
+credentials_file = @HOME@/.config/Moniswitch/sunshine/sunshine_state.json
+log_path = @HOME@/.local/state/Moniswitch/sunshine.log
+pkey = @HOME@/.config/Moniswitch/sunshine/credentials/cakey.pem
+cert = @HOME@/.config/Moniswitch/sunshine/credentials/cacert.pem

@@ -1,0 +1,13 @@
+[Unit]
+Description=Moniswitch LAN Canvas sender
+After=graphical-session.target network-online.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/.local/opt/moniswitch-sunshine-appimage/squashfs-root
+ExecStart=%h/.local/opt/moniswitch-sunshine-appimage/squashfs-root/usr/bin/sunshine %h/.config/Moniswitch/sunshine/sunshine.conf
+Restart=no
+
+[Install]
+WantedBy=graphical-session.target

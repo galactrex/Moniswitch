@@ -1,0 +1,39 @@
+# Replace these values for the two machines on your LAN.
+host = WINDOWS_LAN_IP
+port = 24800
+name = LINUX_SCREEN_NAME
+backend = wlr
+xkb_key_offset = 8
+
+[tls]
+enable = true
+tofu = false
+
+[log]
+level = 2
+mode = a
+path = /home/LINUX_USER/.local/state/Moniswitch/waynergy.log
+
+[idle-inhibit]
+enable = false
+
+[raw-keymap]
+# Normal PS/2 keys align with Linux evdev/XKB after +8. Windows E0 keys
+# need explicit Linux XKB destinations. The Windows key becomes Super.
+offset_on_explicit = false
+285 = 105 # Right Ctrl
+311 = 107 # Print Screen
+312 = 108 # Right Alt
+327 = 110 # Home
+328 = 111 # Up
+329 = 112 # Page Up
+331 = 113 # Left
+333 = 114 # Right
+335 = 115 # End
+336 = 116 # Down
+337 = 117 # Page Down
+338 = 118 # Insert
+339 = 119 # Delete
+347 = 133 # Super_L
+348 = 134 # Super_R
+349 = 135 # Menu
