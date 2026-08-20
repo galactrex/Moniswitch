@@ -8,11 +8,18 @@ try
 {
     var freshStore = new SettingsStore(Path.Combine(root, "fresh-settings"));
     Require(freshStore.Current.PrivacyView, "privacy view is not enabled on first launch");
+    Require(freshStore.Current.Version == 6, "fresh settings version is not current");
     Require(freshStore.Current.Profiles.Count == 0, "fresh settings contain a saved route");
     Require(
         freshStore.Current.InputSharing.WindowsScreenName == "windows-pc" &&
         freshStore.Current.InputSharing.LinuxScreenName == "linux-pc",
         "fresh input names are machine-specific");
+    Require(
+        freshStore.Current.InputSharing.StartWithWindows,
+        "fresh settings do not preserve the restart-safe tray utility default");
+    Require(
+        StartupRegistration.BuildCommand(@"C:\Apps\Moniswitch.exe") == "\"C:\\Apps\\Moniswitch.exe\"",
+        "Windows startup command is not quoted");
     Require(
         string.IsNullOrWhiteSpace(freshStore.Current.LanCanvas.LinuxHost) &&
         string.IsNullOrWhiteSpace(freshStore.Current.LanCanvas.LinuxUser) &&

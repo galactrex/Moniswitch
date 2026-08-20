@@ -176,7 +176,7 @@ internal sealed class SettingsForm : Form
         _hotkeyButton.Click += (_, _) => BeginHotkeyCapture();
         routeLayout.Controls.Add(_hotkeyButton, 0, 2);
 
-        routeLayout.Controls.Add(UiTheme.ControlLabel("Display"), 0, 4);
+        routeLayout.Controls.Add(UiTheme.ControlLabel("Hotkey display"), 0, 4);
         _quickMonitor = UiTheme.ComboBox();
         _quickMonitor.Dock = DockStyle.Fill;
         _quickMonitor.Margin = new Padding(0, 0, 0, 4);
@@ -591,7 +591,9 @@ internal sealed class SettingsForm : Form
                     continue;
                 }
 
-                _quickMonitor.Items.Add(new MonitorChoice(monitor.Id, monitor.Name));
+                _quickMonitor.Items.Add(new MonitorChoice(
+                    monitor.Id,
+                    $"{index + 1:00} / {monitor.Name}"));
             }
 
             var targetIndex = Enumerable.Range(0, _quickMonitor.Items.Count)
@@ -633,6 +635,10 @@ internal sealed class SettingsForm : Form
         }
 
         SaveQuickSwitch();
+        if (_quickMonitor.SelectedItem is MonitorChoice choice)
+        {
+            SetStatus($"HOTKEY DISPLAY / {choice.Label.ToUpperInvariant()}", success: true);
+        }
     }
 
     private void PopulateQuickInputs()
@@ -969,9 +975,9 @@ internal sealed class SettingsForm : Form
     }
 }
 
-internal sealed record MonitorChoice(string Id, string Name)
+internal sealed record MonitorChoice(string Id, string Label)
 {
-    public override string ToString() => Name;
+    public override string ToString() => Label;
 }
 
 internal sealed class MonitorSwitchRequestedEventArgs(string monitorId, byte input) : EventArgs

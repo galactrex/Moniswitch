@@ -25,6 +25,8 @@ shortcut returns both control and video to Windows.
 
 Install Deskflow, then open **Input Link** in Moniswitch. Enter the Windows and
 Linux screen names, select `deskflow-core.exe`, and press **Save + Start**.
+Leave **Start Moniswitch with Windows** enabled if the link and global shortcut
+should return automatically after a Windows restart.
 
 On the first start, Moniswitch creates an isolated Deskflow configuration and a
 3072-bit TLS identity under `%LocalAppData%\Moniswitch\deskflow`. Press
@@ -72,8 +74,10 @@ systemctl --user daemon-reload
 systemctl --user enable --now moniswitch-waynergy.service
 ```
 
-The service restarts only after a failure. It belongs to the graphical session
-and does not run as root.
+The supplied service forces the wlroots backend and treats disconnects and
+timeouts as restartable events. If either computer disappears or restarts, the
+receiver keeps retrying from the graphical user session. It does not run as
+root and does not grant Waynergy access to `/dev/uinput`.
 
 ## Clipboard
 

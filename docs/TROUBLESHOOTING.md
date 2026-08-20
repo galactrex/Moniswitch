@@ -79,6 +79,9 @@ physical source control once, return to Windows, then:
 - Close software that already owns the same global combination.
 - Verify both Quick route sources are different and the chosen monitor is
   routable.
+- Open **Hotkey display** in the main window or notification-area menu and
+  confirm the checked `01 / MODEL` entry is the physical display you intend to
+  move. Selecting it changes the shortcut target without routing the display.
 
 Moniswitch observes the shortcut without consuming it so Deskflow can receive
 the same physical keypress.
@@ -109,6 +112,12 @@ an issue.
 4. Allow TCP port `24800` from the Linux computer through Windows Firewall.
 5. Copy the server pin again and update Waynergy's fingerprint file.
 6. Restart the user service on Linux.
+
+For Hyprland and other wlroots sessions, use the supplied user service. It
+forces Waynergy's `wlr` backend and restarts after a disconnect or timeout, so
+the link can recover when either computer reboots. A startup message saying
+that `/dev/uinput` could not be opened is not evidence that the wlroots backend
+failed; do not solve it with `chmod 666 /dev/uinput`.
 
 The server certificate is pinned by the Linux client. If the Windows TLS
 identity was regenerated, the old pin is supposed to fail. Security behaving as

@@ -6,6 +6,7 @@ internal sealed class InputSharingForm : Form
     private readonly TextBox _windowsName;
     private readonly TextBox _linuxName;
     private readonly TextBox _deskflow;
+    private readonly CheckBox _startWithWindows;
     private readonly Label _status;
     private readonly Panel _statusLamp;
     private readonly Button _saveButton;
@@ -25,7 +26,7 @@ internal sealed class InputSharingForm : Form
         Font = UiTheme.Font();
         FormBorderStyle = FormBorderStyle.FixedDialog;
         StartPosition = FormStartPosition.CenterParent;
-        ClientSize = new Size(680, 522);
+        ClientSize = new Size(680, 566);
         MaximizeBox = false;
         MinimizeBox = false;
         ShowInTaskbar = false;
@@ -57,7 +58,7 @@ internal sealed class InputSharingForm : Form
             Dock = DockStyle.Fill,
             BackColor = UiTheme.Surface,
             ColumnCount = 2,
-            RowCount = 7,
+            RowCount = 8,
             Margin = Padding.Empty,
             Padding = Padding.Empty
         };
@@ -68,6 +69,7 @@ internal sealed class InputSharingForm : Form
         grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 52));
         grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 52));
         grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+        grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
         grid.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
         body.Controls.Add(grid);
@@ -92,12 +94,24 @@ internal sealed class InputSharingForm : Form
         copyFingerprint.Click += (_, _) => CopyServerFingerprint();
         AddField(grid, 4, "TLS pin", copyFingerprint);
 
+        _startWithWindows = new CheckBox
+        {
+            AutoSize = true,
+            Anchor = AnchorStyles.Left,
+            BackColor = UiTheme.Surface,
+            ForeColor = UiTheme.Text,
+            FlatStyle = FlatStyle.Flat,
+            Font = UiTheme.MonoFont(9.5f, FontStyle.Bold),
+            Text = "START MONISWITCH WITH WINDOWS"
+        };
+        AddField(grid, 5, "Startup", _startWithWindows);
+
         var note = UiTheme.SignalLabel(
             "PRIVATE VALUES STAY ON THIS PC / ONE BRIDGE / NO INPUT POLLING",
             UiTheme.Faint);
         note.Anchor = AnchorStyles.Left | AnchorStyles.Bottom;
         note.Margin = new Padding(0, 0, 0, 12);
-        grid.Controls.Add(note, 1, 5);
+        grid.Controls.Add(note, 1, 6);
 
         var actions = new TableLayoutPanel
         {
@@ -120,7 +134,7 @@ internal sealed class InputSharingForm : Form
         _stopButton.Click += (_, _) => StopLink();
         actions.Controls.Add(_saveButton, 0, 0);
         actions.Controls.Add(_stopButton, 1, 0);
-        grid.Controls.Add(actions, 0, 6);
+        grid.Controls.Add(actions, 0, 7);
         grid.SetColumnSpan(actions, 2);
 
         var footer = new Panel
@@ -280,6 +294,7 @@ internal sealed class InputSharingForm : Form
         _windowsName.Text = settings.WindowsScreenName;
         _linuxName.Text = settings.LinuxScreenName;
         _deskflow.Text = settings.DeskflowExecutablePath ?? DeskflowBridge.FindExecutable() ?? string.Empty;
+        _startWithWindows.Checked = settings.StartWithWindows;
         SetStatus(settings.Enabled ? "LINK CONFIGURED" : "LINK OFF", success: settings.Enabled);
     }
 
@@ -312,6 +327,7 @@ internal sealed class InputSharingForm : Form
             settings.WindowsScreenName = windows;
             settings.LinuxScreenName = linux;
             settings.DeskflowExecutablePath = executable;
+            settings.StartWithWindows = _startWithWindows.Checked;
             settings.Enabled = true;
             _settingsStore.Save();
             ConfigurationChanged?.Invoke(this, EventArgs.Empty);
@@ -330,6 +346,7 @@ internal sealed class InputSharingForm : Form
         }
 
         _settingsStore.Current.InputSharing.Enabled = false;
+        _settingsStore.Current.InputSharing.StartWithWindows = _startWithWindows.Checked;
         _settingsStore.Save();
         ConfigurationChanged?.Invoke(this, EventArgs.Empty);
     }

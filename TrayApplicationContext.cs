@@ -21,6 +21,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
     {
         _monitorService = new MonitorService(refreshImmediately: false);
         _settingsStore = new SettingsStore();
+        StartupRegistration.Apply(_settingsStore.Current.InputSharing.StartWithWindows);
         _lanCanvasController = new LanCanvasController(_settingsStore, _monitorService);
         _lanCanvasController.StatusChanged += (_, _) =>
         {
@@ -165,6 +166,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
     private void ApplyInputSharingConfiguration()
     {
+        StartupRegistration.Apply(_settingsStore.Current.InputSharing.StartWithWindows);
         RestartInputSharing();
         BuildTrayMenu();
     }
@@ -225,12 +227,37 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _trayMenu.Items.Clear();
         _trayMenu.Items.Add("Open Moniswitch", null, (_, _) => OpenSettings());
 
-        var quickItem = new ToolStripMenuItem("Quick switch")
+        var quickItem = new ToolStripMenuItem("Quick switch now")
         {
             ShortcutKeyDisplayString = _settingsStore.Current.Hotkey.ToBinding().DisplayText
         };
         quickItem.Click += async (_, _) => await QuickToggleAsync();
         _trayMenu.Items.Add(quickItem);
+
+        var orderedMonitors = _monitorService.Monitors
+            .OrderBy(item => item.Bounds.Left)
+            .ThenBy(item => item.Bounds.Top)
+            .ToArray();
+        var hotkeyDisplay = new ToolStripMenuItem("Hotkey display");
+        for (var index = 0; index < orderedMonitors.Length; index++)
+        {
+            var monitor = orderedMonitors[index];
+            if (!monitor.DdcAvailable || monitor.Inputs.Count < 2)
+            {
+                continue;
+            }
+
+            var capturedMonitor = monitor;
+            var targetItem = new ToolStripMenuItem($"{index + 1:00} / {monitor.Name}")
+            {
+                Checked = monitor.Id == _settingsStore.Current.QuickToggleMonitorId
+            };
+            targetItem.Click += (_, _) => SelectQuickSwitchMonitor(capturedMonitor);
+            hotkeyDisplay.DropDownItems.Add(targetItem);
+        }
+
+        hotkeyDisplay.Enabled = hotkeyDisplay.DropDownItems.Count > 0;
+        _trayMenu.Items.Add(hotkeyDisplay);
 
         if (_settingsStore.Current.InputSharing.Enabled)
         {
@@ -270,10 +297,6 @@ internal sealed class TrayApplicationContext : ApplicationContext
         }
 
         var displays = new ToolStripMenuItem("Displays");
-        var orderedMonitors = _monitorService.Monitors
-            .OrderBy(item => item.Bounds.Left)
-            .ThenBy(item => item.Bounds.Top)
-            .ToArray();
         for (var index = 0; index < orderedMonitors.Length; index++)
         {
             var monitor = orderedMonitors[index];
@@ -301,6 +324,36 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _trayMenu.Items.Add(new ToolStripSeparator());
         _trayMenu.Items.Add("Refresh displays", null, async (_, _) => await RefreshAsync());
         _trayMenu.Items.Add("Exit Moniswitch", null, (_, _) => ExitThread());
+    }
+
+    private void SelectQuickSwitchMonitor(MonitorSnapshot monitor)
+    {
+        var settings = _settingsStore.Current;
+        var keepSources = settings.QuickToggleMonitorId == monitor.Id &&
+                          settings.QuickToggleInputA.HasValue &&
+                          settings.QuickToggleInputB.HasValue &&
+                          settings.QuickToggleInputA != settings.QuickToggleInputB &&
+                          monitor.Inputs.Any(input => input.Code == settings.QuickToggleInputA.Value) &&
+                          monitor.Inputs.Any(input => input.Code == settings.QuickToggleInputB.Value);
+
+        settings.QuickToggleMonitorId = monitor.Id;
+        if (!keepSources)
+        {
+            settings.QuickToggleInputA = monitor.CurrentInput ?? monitor.Inputs[0].Code;
+            settings.QuickToggleInputB = monitor.Inputs.FirstOrDefault(input =>
+                    input.Code != settings.QuickToggleInputA &&
+                    input.Name.StartsWith("HDMI", StringComparison.OrdinalIgnoreCase))?.Code
+                ?? monitor.Inputs.First(input => input.Code != settings.QuickToggleInputA).Code;
+        }
+
+        _settingsStore.Save();
+        _settingsForm?.ReloadFromService();
+        BuildTrayMenu();
+        _trayIcon.ShowBalloonTip(
+            1200,
+            "Hotkey display selected",
+            monitor.Name,
+            ToolTipIcon.None);
     }
 
     private void OpenLanCanvas()

@@ -54,10 +54,15 @@ the return command.
 
 Quick route toggles one routable monitor between two inputs.
 
-1. Choose the monitor.
+1. Choose **Hotkey display**. The number matches the monitor card: `01`, `02`,
+   and so on; the model name remains visible beside it.
 2. Set **Source A** and **Source B**.
 3. Select the shortcut field and press the new combination.
 4. Use **Route selected** once to test it.
+
+The same target is available from the notification-area menu under **Hotkey
+display**. Choosing a target does not switch it immediately; it decides which
+display the shortcut will move.
 
 The default shortcut is `Ctrl+Alt+M`. A shortcut must contain Ctrl, Alt, or
 Shift so normal typing cannot transfer a monitor halfway through a sentence.

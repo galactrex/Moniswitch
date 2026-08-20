@@ -4,7 +4,7 @@ namespace Moniswitch;
 
 internal sealed class AppSettings
 {
-    public int Version { get; set; } = 5;
+    public int Version { get; set; } = 6;
     public bool PrivacyView { get; set; } = true;
     public string? QuickToggleMonitorId { get; set; }
     public byte? QuickToggleInputA { get; set; }
@@ -30,6 +30,7 @@ internal sealed class LanCanvasSettings
 internal sealed class InputSharingSettings
 {
     public bool Enabled { get; set; }
+    public bool StartWithWindows { get; set; } = true;
     public string WindowsScreenName { get; set; } = "windows-pc";
     public string LinuxScreenName { get; set; } = "linux-pc";
     public string? WindowsProfileId { get; set; }
@@ -90,7 +91,7 @@ internal sealed class SettingsStore
                 settings.Hotkey ??= new HotkeySettings();
                 settings.InputSharing ??= new InputSharingSettings();
                 settings.LanCanvas ??= new LanCanvasSettings();
-                settings.Version = Math.Max(settings.Version, 5);
+                settings.Version = Math.Max(settings.Version, 6);
                 return settings;
             }
         }
