@@ -10,12 +10,69 @@ internal sealed record InputSource(byte Code, string Name)
     public override string ToString() => Name;
 }
 
+internal readonly record struct DisplayPathIdentity(
+    string DisplayName,
+    int AdapterHighPart,
+    uint AdapterLowPart,
+    uint TargetId);
+
+internal static class DisplayIdentity
+{
+    private const string DisplayMarker = "DISPLAY";
+
+    public static int NumberOf(string? displayName)
+    {
+        if (string.IsNullOrWhiteSpace(displayName))
+        {
+            return int.MaxValue;
+        }
+
+        var markerIndex = displayName.LastIndexOf(DisplayMarker, StringComparison.OrdinalIgnoreCase);
+        if (markerIndex < 0)
+        {
+            return int.MaxValue;
+        }
+
+        var suffix = displayName.AsSpan(markerIndex + DisplayMarker.Length);
+        return int.TryParse(suffix, out var number) && number > 0
+            ? number
+            : int.MaxValue;
+    }
+
+    public static string NumberLabel(string? displayName, int fallbackNumber)
+    {
+        var number = NumberOf(displayName);
+        return (number == int.MaxValue ? fallbackNumber : number).ToString("00");
+    }
+
+    public static string NumberLabel(int displayNumber, int fallbackNumber) =>
+        (displayNumber == int.MaxValue ? fallbackNumber : displayNumber).ToString("00");
+
+    public static IReadOnlyDictionary<string, int> RankTargets(IEnumerable<DisplayPathIdentity> paths)
+    {
+        var numbers = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var path in paths
+                     .OrderBy(item => item.TargetId)
+                     .ThenBy(item => item.AdapterHighPart)
+                     .ThenBy(item => item.AdapterLowPart))
+        {
+            if (!numbers.ContainsKey(path.DisplayName))
+            {
+                numbers[path.DisplayName] = numbers.Count + 1;
+            }
+        }
+
+        return numbers;
+    }
+}
+
 internal sealed record MonitorSnapshot(
     string Id,
     string Name,
     string DisplayName,
     string ProductCode,
     string HardwareId,
+    int DisplayNumber,
     Rectangle Bounds,
     IReadOnlyList<InputSource> Inputs,
     byte? CurrentInput,
@@ -197,6 +254,7 @@ internal sealed class PhysicalMonitorSet : IDisposable
     public static PhysicalMonitorSet OpenAll()
     {
         var result = new PhysicalMonitorSet();
+        var windowsDisplayNumbers = NativeMethods.GetWindowsDisplayNumbers();
         NativeMethods.MonitorEnumProc callback = (logicalHandle, _, _, _) =>
         {
             var info = new NativeMethods.MonitorInfoEx
@@ -217,6 +275,9 @@ internal sealed class PhysicalMonitorSet : IDisposable
             }
 
             var hardwareId = NativeMethods.GetMonitorHardwareId(info.DeviceName);
+            var displayNumber = windowsDisplayNumbers.TryGetValue(info.DeviceName, out var mappedNumber)
+                ? mappedNumber
+                : DisplayIdentity.NumberOf(info.DeviceName);
             var bounds = Rectangle.FromLTRB(
                 info.MonitorLeft,
                 info.MonitorTop,
@@ -230,6 +291,7 @@ internal sealed class PhysicalMonitorSet : IDisposable
                     info.DeviceName,
                     item.Description,
                     hardwareId,
+                    displayNumber,
                     bounds));
             }
 
@@ -270,12 +332,14 @@ internal sealed class MonitorDevice : IDisposable
         string displayName,
         string description,
         string hardwareId,
+        int displayNumber,
         Rectangle bounds)
     {
         Handle = handle;
         DisplayName = displayName;
         Description = description;
         HardwareId = hardwareId;
+        DisplayNumber = displayNumber;
         Bounds = bounds;
         ProductCode = MonitorCapabilities.GetProductCode(hardwareId);
         Id = string.IsNullOrWhiteSpace(hardwareId)
@@ -293,6 +357,7 @@ internal sealed class MonitorDevice : IDisposable
     public string Description { get; }
     public string ProductCode { get; }
     public string HardwareId { get; }
+    public int DisplayNumber { get; }
     public Rectangle Bounds { get; }
     public List<InputSource> Inputs { get; } = [];
     public byte? CurrentInput { get; set; }
@@ -356,6 +421,7 @@ internal sealed class MonitorDevice : IDisposable
         DisplayName,
         ProductCode,
         HardwareId,
+        DisplayNumber,
         Bounds,
         Inputs.ToArray(),
         CurrentInput,
@@ -439,6 +505,11 @@ internal static partial class MonitorCapabilities
 internal static class NativeMethods
 {
     private const uint GetDeviceInterfaceName = 0x00000001;
+    private const uint QdcOnlyActivePaths = 0x00000002;
+    private const uint DisplayConfigGetSourceName = 1;
+    private const int DisplayConfigModeInfoBytes = 64;
+    private const int ErrorSuccess = 0;
+    private const int ErrorInsufficientBuffer = 122;
 
     internal delegate bool MonitorEnumProc(IntPtr monitor, IntPtr deviceContext, IntPtr monitorRect, IntPtr data);
 
@@ -489,6 +560,73 @@ internal static class NativeMethods
         internal string DeviceKey;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct Luid
+    {
+        internal uint LowPart;
+        internal int HighPart;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct DisplayConfigRational
+    {
+        internal uint Numerator;
+        internal uint Denominator;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct DisplayConfigPathSourceInfo
+    {
+        internal Luid AdapterId;
+        internal uint Id;
+        internal uint ModeInfoIndex;
+        internal uint StatusFlags;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct DisplayConfigPathTargetInfo
+    {
+        internal Luid AdapterId;
+        internal uint Id;
+        internal uint ModeInfoIndex;
+        internal uint OutputTechnology;
+        internal uint Rotation;
+        internal uint Scaling;
+        internal DisplayConfigRational RefreshRate;
+        internal uint ScanLineOrdering;
+
+        [MarshalAs(UnmanagedType.Bool)]
+        internal bool TargetAvailable;
+
+        internal uint StatusFlags;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct DisplayConfigPathInfo
+    {
+        internal DisplayConfigPathSourceInfo SourceInfo;
+        internal DisplayConfigPathTargetInfo TargetInfo;
+        internal uint Flags;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct DisplayConfigDeviceInfoHeader
+    {
+        internal uint Type;
+        internal uint Size;
+        internal Luid AdapterId;
+        internal uint Id;
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    internal struct DisplayConfigSourceDeviceName
+    {
+        internal DisplayConfigDeviceInfoHeader Header;
+
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+        internal string ViewGdiDeviceName;
+    }
+
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool EnumDisplayMonitors(
@@ -508,6 +646,24 @@ internal static class NativeMethods
         uint deviceIndex,
         ref DisplayDevice displayDevice,
         uint flags);
+
+    [DllImport("user32.dll")]
+    private static extern int GetDisplayConfigBufferSizes(
+        uint flags,
+        out uint pathCount,
+        out uint modeCount);
+
+    [DllImport("user32.dll")]
+    private static extern int QueryDisplayConfig(
+        uint flags,
+        ref uint pathCount,
+        [Out] DisplayConfigPathInfo[] paths,
+        ref uint modeCount,
+        IntPtr modes,
+        IntPtr currentTopologyId);
+
+    [DllImport("user32.dll")]
+    private static extern int DisplayConfigGetDeviceInfo(ref DisplayConfigSourceDeviceName request);
 
     [DllImport("dxva2.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -562,6 +718,74 @@ internal static class NativeMethods
         }
 
         return string.Empty;
+    }
+
+    internal static IReadOnlyDictionary<string, int> GetWindowsDisplayNumbers()
+    {
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            if (GetDisplayConfigBufferSizes(QdcOnlyActivePaths, out var pathCount, out var modeCount) != ErrorSuccess)
+            {
+                break;
+            }
+
+            var paths = new DisplayConfigPathInfo[pathCount];
+            var modeBytes = checked(Math.Max(1, (int)modeCount) * DisplayConfigModeInfoBytes);
+            var modes = Marshal.AllocHGlobal(modeBytes);
+            try
+            {
+                var result = QueryDisplayConfig(
+                    QdcOnlyActivePaths,
+                    ref pathCount,
+                    paths,
+                    ref modeCount,
+                    modes,
+                    IntPtr.Zero);
+                if (result == ErrorInsufficientBuffer)
+                {
+                    continue;
+                }
+
+                if (result != ErrorSuccess)
+                {
+                    break;
+                }
+
+                var activePaths = new List<DisplayPathIdentity>();
+                for (var index = 0; index < pathCount; index++)
+                {
+                    var path = paths[index];
+                    var sourceName = new DisplayConfigSourceDeviceName
+                    {
+                        Header = new DisplayConfigDeviceInfoHeader
+                        {
+                            Type = DisplayConfigGetSourceName,
+                            Size = (uint)Marshal.SizeOf<DisplayConfigSourceDeviceName>(),
+                            AdapterId = path.SourceInfo.AdapterId,
+                            Id = path.SourceInfo.Id
+                        },
+                        ViewGdiDeviceName = string.Empty
+                    };
+                    if (DisplayConfigGetDeviceInfo(ref sourceName) == ErrorSuccess &&
+                        !string.IsNullOrWhiteSpace(sourceName.ViewGdiDeviceName))
+                    {
+                        activePaths.Add(new DisplayPathIdentity(
+                            sourceName.ViewGdiDeviceName,
+                            path.TargetInfo.AdapterId.HighPart,
+                            path.TargetInfo.AdapterId.LowPart,
+                            path.TargetInfo.Id));
+                    }
+                }
+
+                return DisplayIdentity.RankTargets(activePaths);
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(modes);
+            }
+        }
+
+        return new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
     }
 
     internal static string TryReadCapabilities(IntPtr monitor)

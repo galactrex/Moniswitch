@@ -54,8 +54,9 @@ the return command.
 
 Quick route toggles one routable monitor between two inputs.
 
-1. Choose **Hotkey display**. The number matches the monitor card: `01`, `02`,
-   and so on; the model name remains visible beside it.
+1. Choose **Hotkey display**. The number matches Windows **Display settings →
+   Identify**: `01`, `02`, and so on. Monitor cards use the same Windows number,
+   with the model name visible beside it.
 2. Set **Source A** and **Source B**.
 3. Select the shortcut field and press the new combination.
 4. Use **Route selected** once to test it.

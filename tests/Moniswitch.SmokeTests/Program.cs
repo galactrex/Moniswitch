@@ -20,6 +20,17 @@ try
     Require(
         StartupRegistration.BuildCommand(@"C:\Apps\Moniswitch.exe") == "\"C:\\Apps\\Moniswitch.exe\"",
         "Windows startup command is not quoted");
+    Require(DisplayIdentity.NumberOf(@"\\.\DISPLAY1") == 1, "Windows display 1 was not parsed");
+    Require(DisplayIdentity.NumberOf(@"\\.\DISPLAY12") == 12, "multi-digit display number was not parsed");
+    Require(DisplayIdentity.NumberOf("unknown") == int.MaxValue, "invalid display name received a number");
+    var rankedDisplays = DisplayIdentity.RankTargets([
+        new DisplayPathIdentity(@"\\.\DISPLAY1", 0, 1, 0xA100),
+        new DisplayPathIdentity(@"\\.\DISPLAY2", 0, 1, 0xA105),
+        new DisplayPathIdentity(@"\\.\DISPLAY3", 0, 1, 0xA102)
+    ]);
+    Require(rankedDisplays[@"\\.\DISPLAY1"] == 1, "first Windows target rank was wrong");
+    Require(rankedDisplays[@"\\.\DISPLAY3"] == 2, "second Windows target rank was wrong");
+    Require(rankedDisplays[@"\\.\DISPLAY2"] == 3, "third Windows target rank was wrong");
     Require(
         string.IsNullOrWhiteSpace(freshStore.Current.LanCanvas.LinuxHost) &&
         string.IsNullOrWhiteSpace(freshStore.Current.LanCanvas.LinuxUser) &&

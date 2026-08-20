@@ -46,8 +46,18 @@ internal sealed partial class LanCanvasController : IDisposable
     {
         get
         {
+            var monitors = _monitorService.Monitors;
+            var displayNumbers = monitors
+                .GroupBy(monitor => monitor.DisplayName, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(
+                    group => group.Key,
+                    group => group.First().DisplayNumber,
+                    StringComparer.OrdinalIgnoreCase);
             var screens = Screen.AllScreens
-                .OrderBy(screen => screen.Bounds.Left)
+                .OrderBy(screen => displayNumbers.TryGetValue(screen.DeviceName, out var number)
+                    ? number
+                    : DisplayIdentity.NumberOf(screen.DeviceName))
+                .ThenBy(screen => screen.Bounds.Left)
                 .ThenBy(screen => screen.Bounds.Top)
                 .ToArray();
             var left = screens.Min(screen => screen.Bounds.Left);
@@ -63,7 +73,6 @@ internal sealed partial class LanCanvasController : IDisposable
                     new Rectangle(left, top, right - left, bottom - top))
             };
 
-            var monitors = _monitorService.Monitors;
             for (var index = 0; index < screens.Length; index++)
             {
                 var screen = screens[index];
@@ -79,7 +88,7 @@ internal sealed partial class LanCanvasController : IDisposable
                     : "LANDSCAPE";
                 targets.Add(new CanvasTarget(
                     screen.DeviceName,
-                    $"{name.ToUpperInvariant()} / {screen.Bounds.Width}×{screen.Bounds.Height} / {orientation}",
+                    $"{DisplayIdentity.NumberLabel(monitor?.DisplayNumber ?? DisplayIdentity.NumberOf(screen.DeviceName), index + 1)} / {name.ToUpperInvariant()} / {screen.Bounds.Width}×{screen.Bounds.Height} / {orientation}",
                     1,
                     screen.Bounds));
             }

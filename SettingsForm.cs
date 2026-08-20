@@ -553,14 +553,16 @@ internal sealed class SettingsForm : Form
         {
             _monitorList.Controls.Clear();
             var monitors = _monitorService.Monitors
-                .OrderBy(monitor => monitor.Bounds.Left)
+                .OrderBy(monitor => monitor.DisplayNumber)
+                .ThenBy(monitor => monitor.Bounds.Left)
                 .ThenBy(monitor => monitor.Bounds.Top)
                 .ToArray();
 
             for (var index = 0; index < monitors.Length; index++)
             {
                 var monitor = monitors[index];
-                var card = new MonitorCard(monitor, index + 1, _settingsStore.Current.PrivacyView);
+                var displayNumber = DisplayIdentity.NumberLabel(monitor.DisplayNumber, index + 1);
+                var card = new MonitorCard(monitor, displayNumber, _settingsStore.Current.PrivacyView);
                 card.SwitchRequested += async (_, request) => await SwitchOneAsync(request.MonitorId, request.Input);
                 _cards[monitor.Id] = card;
                 _monitorList.Controls.Add(card);
@@ -593,7 +595,7 @@ internal sealed class SettingsForm : Form
 
                 _quickMonitor.Items.Add(new MonitorChoice(
                     monitor.Id,
-                    $"{index + 1:00} / {monitor.Name}"));
+                    $"{DisplayIdentity.NumberLabel(monitor.DisplayNumber, index + 1)} / {monitor.Name}"));
             }
 
             var targetIndex = Enumerable.Range(0, _quickMonitor.Items.Count)
@@ -992,7 +994,7 @@ internal sealed class MonitorCard : UserControl
     private readonly Label _current;
     private readonly bool _routable;
 
-    public MonitorCard(MonitorSnapshot monitor, int index, bool privacyView)
+    public MonitorCard(MonitorSnapshot monitor, string displayNumber, bool privacyView)
     {
         MonitorId = monitor.Id;
         _routable = monitor.DdcAvailable && monitor.Inputs.Count > 0;
@@ -1020,7 +1022,7 @@ internal sealed class MonitorCard : UserControl
         layout.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
         Controls.Add(layout);
 
-        var number = UiTheme.SignalLabel(index.ToString("00"), _routable ? UiTheme.Accent : UiTheme.Faint);
+        var number = UiTheme.SignalLabel(displayNumber, _routable ? UiTheme.Accent : UiTheme.Faint);
         number.Font = UiTheme.MonoFont(11, FontStyle.Bold);
         number.Anchor = AnchorStyles.Left;
         layout.Controls.Add(number, 0, 0);
@@ -1031,13 +1033,13 @@ internal sealed class MonitorCard : UserControl
         name.Anchor = AnchorStyles.Left;
         layout.Controls.Add(name, 1, 0);
 
-        var displayNumber = monitor.DisplayName
+        var displayDevice = monitor.DisplayName
             .Split('\\', StringSplitOptions.RemoveEmptyEntries)
             .LastOrDefault() ?? monitor.DisplayName;
         var orientation = monitor.Bounds.Height > monitor.Bounds.Width ? "PORTRAIT" : "LANDSCAPE";
         var visibleDetail = privacyView
             ? $"{monitor.Bounds.Width}×{monitor.Bounds.Height} · {orientation}"
-            : $"{displayNumber} · {monitor.ProductCode} · {monitor.Bounds.Width}×{monitor.Bounds.Height}";
+            : $"{displayDevice} · {monitor.ProductCode} · {monitor.Bounds.Width}×{monitor.Bounds.Height}";
         var detail = UiTheme.SignalLabel(visibleDetail, UiTheme.Muted);
         detail.Anchor = AnchorStyles.Left;
         layout.Controls.Add(detail, 1, 1);

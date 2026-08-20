@@ -235,7 +235,8 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _trayMenu.Items.Add(quickItem);
 
         var orderedMonitors = _monitorService.Monitors
-            .OrderBy(item => item.Bounds.Left)
+            .OrderBy(item => item.DisplayNumber)
+            .ThenBy(item => item.Bounds.Left)
             .ThenBy(item => item.Bounds.Top)
             .ToArray();
         var hotkeyDisplay = new ToolStripMenuItem("Hotkey display");
@@ -248,7 +249,8 @@ internal sealed class TrayApplicationContext : ApplicationContext
             }
 
             var capturedMonitor = monitor;
-            var targetItem = new ToolStripMenuItem($"{index + 1:00} / {monitor.Name}")
+            var targetItem = new ToolStripMenuItem(
+                $"{DisplayIdentity.NumberLabel(monitor.DisplayNumber, index + 1)} / {monitor.Name}")
             {
                 Checked = monitor.Id == _settingsStore.Current.QuickToggleMonitorId
             };
@@ -300,7 +302,8 @@ internal sealed class TrayApplicationContext : ApplicationContext
         for (var index = 0; index < orderedMonitors.Length; index++)
         {
             var monitor = orderedMonitors[index];
-            var monitorLabel = monitor.Name;
+            var monitorLabel =
+                $"{DisplayIdentity.NumberLabel(monitor.DisplayNumber, index + 1)} / {monitor.Name}";
             var monitorItem = new ToolStripMenuItem(monitorLabel)
             {
                 Enabled = monitor.DdcAvailable && monitor.Inputs.Count > 0

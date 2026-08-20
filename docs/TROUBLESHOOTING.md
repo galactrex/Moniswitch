@@ -81,7 +81,9 @@ physical source control once, return to Windows, then:
   routable.
 - Open **Hotkey display** in the main window or notification-area menu and
   confirm the checked `01 / MODEL` entry is the physical display you intend to
-  move. Selecting it changes the shortcut target without routing the display.
+  move. The number is Windows' **Display settings → Identify** number, not the
+  screen's left-to-right position. Selecting it changes the shortcut target
+  without routing the display.
 
 Moniswitch observes the shortcut without consuming it so Deskflow can receive
 the same physical keypress.

@@ -18,8 +18,8 @@ monitor where the manufacturer apparently intended them to become folklore.
   commands.
 - Saves multi-monitor routes and recalls them from the main window or tray.
 - Assigns a changeable keyboard shortcut to a two-input quick route.
-- Makes the shortcut target explicit by monitor number and model in both the
-  main window and notification-area menu.
+- Makes the shortcut target explicit by Windows display number and monitor
+  model in both the main window and notification-area menu.
 - Shares keyboard, mouse, and text clipboard between Windows and Linux through
   Deskflow and Waynergy.
 - Can start with Windows while the Linux user service retries after restarts,
