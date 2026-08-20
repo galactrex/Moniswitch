@@ -200,20 +200,20 @@ internal sealed class TrayApplicationContext : ApplicationContext
         var validA = settings.QuickToggleMonitorId == monitor.Id &&
                      settings.QuickToggleInputA.HasValue &&
                      monitor.Inputs.Any(input => input.Code == settings.QuickToggleInputA.Value);
+        var inputA = validA
+            ? settings.QuickToggleInputA!.Value
+            : monitor.CurrentInput ?? monitor.Inputs[0].Code;
         var validB = settings.QuickToggleMonitorId == monitor.Id &&
                      settings.QuickToggleInputB.HasValue &&
+                     settings.QuickToggleInputB.Value != inputA &&
                      monitor.Inputs.Any(input => input.Code == settings.QuickToggleInputB.Value);
 
         settings.QuickToggleMonitorId = monitor.Id;
-        settings.QuickToggleInputA = validA
-            ? settings.QuickToggleInputA
-            : monitor.CurrentInput ?? monitor.Inputs[0].Code;
+        settings.QuickToggleInputA = inputA;
         settings.QuickToggleInputB = validB
             ? settings.QuickToggleInputB
-            : monitor.Inputs.FirstOrDefault(input =>
-                    input.Code != settings.QuickToggleInputA &&
-                    input.Name.StartsWith("HDMI", StringComparison.OrdinalIgnoreCase))?.Code
-              ?? monitor.Inputs.First(input => input.Code != settings.QuickToggleInputA).Code;
+            : InputSourceCatalog.AlternativeTo(monitor.Inputs, inputA)
+              ?? throw new InvalidOperationException("Quick Route needs two different monitor inputs.");
         _settingsStore.Save();
     }
 

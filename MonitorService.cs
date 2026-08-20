@@ -103,6 +103,12 @@ internal static class InputSourceCatalog
         0x1B => "USB-C",
         _ => $"Input 0x{code:X2}"
     };
+
+    public static byte? AlternativeTo(IEnumerable<InputSource> inputs, byte current) =>
+        inputs.FirstOrDefault(input =>
+            input.Code != current &&
+            input.Name.StartsWith("HDMI", StringComparison.OrdinalIgnoreCase))?.Code
+        ?? inputs.FirstOrDefault(input => input.Code != current)?.Code;
 }
 
 internal sealed class MonitorService : IDisposable

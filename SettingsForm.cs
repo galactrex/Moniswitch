@@ -662,17 +662,21 @@ internal sealed class SettingsForm : Form
         var preferredA = _settingsStore.Current.QuickToggleMonitorId == monitor.Id
             ? _settingsStore.Current.QuickToggleInputA
             : monitor.CurrentInput;
-        var preferredB = _settingsStore.Current.QuickToggleMonitorId == monitor.Id
-            ? _settingsStore.Current.QuickToggleInputB
-            : monitor.Inputs.FirstOrDefault(input =>
-                input.Code != preferredA && input.Name.StartsWith("HDMI", StringComparison.OrdinalIgnoreCase))?.Code;
-
         _quickInputA.SelectedIndex = FindInputIndex(_quickInputA, preferredA) is var aIndex && aIndex >= 0
             ? aIndex
             : 0;
+        var selectedA = (_quickInputA.SelectedItem as InputSource)?.Code;
+        var savedB = _settingsStore.Current.QuickToggleMonitorId == monitor.Id
+            ? _settingsStore.Current.QuickToggleInputB
+            : null;
+        var preferredB = savedB.HasValue && savedB != selectedA
+            ? savedB
+            : selectedA.HasValue
+                ? InputSourceCatalog.AlternativeTo(monitor.Inputs, selectedA.Value)
+                : null;
         _quickInputB.SelectedIndex = FindInputIndex(_quickInputB, preferredB) is var bIndex && bIndex >= 0
             ? bIndex
-            : Math.Min(1, _quickInputB.Items.Count - 1);
+            : 0;
     }
 
     private void SaveQuickSwitch()
@@ -683,6 +687,29 @@ internal sealed class SettingsForm : Form
             _quickInputB.SelectedItem is not InputSource inputB)
         {
             return;
+        }
+
+        if (inputA.Code == inputB.Code)
+        {
+            var replacement = _quickInputB.Items
+                .OfType<InputSource>()
+                .FirstOrDefault(input => input.Code != inputA.Code);
+            if (replacement is null)
+            {
+                SetStatus("QUICK ROUTE NEEDS TWO DIFFERENT SOURCES", error: true);
+                return;
+            }
+
+            _loadingQuickSwitch = true;
+            try
+            {
+                _quickInputB.SelectedItem = replacement;
+                inputB = replacement;
+            }
+            finally
+            {
+                _loadingQuickSwitch = false;
+            }
         }
 
         _settingsStore.Current.QuickToggleMonitorId = monitor.Id;

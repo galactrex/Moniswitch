@@ -31,6 +31,17 @@ try
     Require(rankedDisplays[@"\\.\DISPLAY1"] == 1, "first Windows target rank was wrong");
     Require(rankedDisplays[@"\\.\DISPLAY3"] == 2, "second Windows target rank was wrong");
     Require(rankedDisplays[@"\\.\DISPLAY2"] == 3, "third Windows target rank was wrong");
+    var routeInputs = new[]
+    {
+        new InputSource(0x0F, "DisplayPort 1"),
+        new InputSource(0x11, "HDMI 1")
+    };
+    Require(
+        InputSourceCatalog.AlternativeTo(routeInputs, 0x11) == 0x0F,
+        "live HDMI did not fall back to DisplayPort");
+    Require(
+        InputSourceCatalog.AlternativeTo(routeInputs, 0x0F) == 0x11,
+        "live DisplayPort did not prefer HDMI");
     Require(
         string.IsNullOrWhiteSpace(freshStore.Current.LanCanvas.LinuxHost) &&
         string.IsNullOrWhiteSpace(freshStore.Current.LanCanvas.LinuxUser) &&
