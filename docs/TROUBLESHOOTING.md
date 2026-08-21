@@ -116,10 +116,16 @@ an issue.
 6. Restart the user service on Linux.
 
 For Hyprland and other wlroots sessions, use the supplied user service. It
-forces Waynergy's `wlr` backend and restarts after a disconnect or timeout, so
-the link can recover when either computer reboots. A startup message saying
-that `/dev/uinput` could not be opened is not evidence that the wlroots backend
-failed; do not solve it with `chmod 666 /dev/uinput`.
+starts from `default.target`, finds the live Wayland socket, forces Waynergy's
+`wlr` backend, and restarts after a disconnect or timeout. This avoids relying
+on `graphical-session.target`, which some compositors never activate. A startup
+message saying that `/dev/uinput` could not be opened is not evidence that the
+wlroots backend failed; do not solve it with `chmod 666 /dev/uinput`.
+
+If Linux is still showing its login screen, Hyprland has not started and the
+`wlr` receiver cannot exist yet. This is not a slow network connection. Use a
+properly installed boot-level `uinput` receiver for pre-login control, or log in
+locally and let the normal user service connect after the compositor starts.
 
 The server certificate is pinned by the Linux client. If the Windows TLS
 identity was regenerated, the old pin is supposed to fail. Security behaving as

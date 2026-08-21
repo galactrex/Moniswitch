@@ -1,16 +1,15 @@
 [Unit]
 Description=Moniswitch keyboard and mouse receiver
-After=graphical-session.target network-online.target
-PartOf=graphical-session.target
 StartLimitIntervalSec=0
 
 [Service]
 Type=simple
 Environment=WAYNERGY_CONF_PATH=%h/.config/waynergy
 Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin
-ExecStart=/usr/bin/env waynergy --backend wlr --fatal-none --fatal-ebad --fatal-ebsy --fatal-timeout
+Environment=XDG_RUNTIME_DIR=%t
+ExecStart=/bin/sh -c 'for candidate in "$XDG_RUNTIME_DIR"/wayland-*; do if [ -S "$candidate" ]; then export WAYLAND_DISPLAY="${candidate##*/}"; exec /usr/bin/env waynergy --backend wlr --fatal-none --fatal-ebad --fatal-ebsy --fatal-timeout; fi; done; exit 75'
 Restart=always
 RestartSec=2
 
 [Install]
-WantedBy=graphical-session.target
+WantedBy=default.target

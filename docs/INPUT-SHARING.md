@@ -74,10 +74,19 @@ systemctl --user daemon-reload
 systemctl --user enable --now moniswitch-waynergy.service
 ```
 
-The supplied service forces the wlroots backend and treats disconnects and
-timeouts as restartable events. If either computer disappears or restarts, the
-receiver keeps retrying from the graphical user session. It does not run as
-root and does not grant Waynergy access to `/dev/uinput`.
+The supplied service starts from the normal systemd user target, waits for the
+compositor's live Wayland socket, forces the wlroots backend, and treats
+disconnects and timeouts as restartable events. If either computer disappears
+or restarts, the receiver keeps retrying from the user session. It does not run
+as root and does not grant Waynergy access to `/dev/uinput`.
+
+### Before desktop login
+
+The `wlr` backend cannot control a password screen that appears before the
+user's Wayland compositor starts. The supplied user service waits safely at
+that boundary. Pre-login control requires a separately installed boot receiver
+with tightly scoped `/dev/uinput` access; it is a system-wide input-injection
+permission and must never be approximated with `chmod 666 /dev/uinput`.
 
 ## Clipboard
 
