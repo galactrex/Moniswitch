@@ -88,6 +88,38 @@ that boundary. Pre-login control requires a separately installed boot receiver
 with tightly scoped `/dev/uinput` access; it is a system-wide input-injection
 permission and must never be approximated with `chmod 666 /dev/uinput`.
 
+On a trusted private network, install the optional receiver from the repository
+after the normal Waynergy link and TLS pin already work. The Linux machine also
+needs a C compiler, `pkg-config`, `setsid`, and the Wayland server development
+files:
+
+```sh
+sudo ./integration/waynergy/install-boot-input.sh "$USER" "$(command -v waynergy)"
+```
+
+The installer copies only the required configuration into a root-owned
+location. It creates a non-login `moniswitch-input` service account, grants
+`/dev/uinput` only to that account, disables clipboard handling before login,
+and builds a tiny private Wayland stub. The stub exposes only a standard
+keyboard-map seat; it provides no compositor, output, or input-injection
+globals. Waynergy can initialize without attaching to the login screen. The boot
+receiver retires when logind reports the user's real Wayland session; the
+normal `wlr` receiver then handles the desktop and clipboard.
+
+The installer detects the first connected Linux display mode. Pass width and
+height as the third and fourth arguments only when that detection is wrong:
+
+```sh
+sudo ./integration/waynergy/install-boot-input.sh \
+  "$USER" "$(command -v waynergy)" 1920 1080
+```
+
+Remove the pre-login receiver without removing the normal user configuration:
+
+```sh
+sudo ./integration/waynergy/uninstall-boot-input.sh
+```
+
 ## Clipboard
 
 Text clipboard sharing uses the same encrypted connection. Copy normally on

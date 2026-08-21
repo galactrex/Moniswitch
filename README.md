@@ -90,6 +90,8 @@ interrogating the network for sport.
 - Deskflow on Windows.
 - Deskflow on X11 Linux, or Waynergy plus `wl-clipboard` on supported wlroots
   Wayland compositors.
+- Optional pre-login Linux input requires the supplied administrator-installed,
+  dedicated `uinput` receiver. It is intended only for trusted private networks.
 
 See [`docs/INPUT-SHARING.md`](docs/INPUT-SHARING.md).
 

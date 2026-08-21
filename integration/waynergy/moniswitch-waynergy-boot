@@ -1,0 +1,110 @@
+#!/bin/sh
+set -eu
+
+waynergy=/usr/local/libexec/moniswitch-waynergy/waynergy
+wayland_stub=/usr/local/libexec/moniswitch-waynergy/moniswitch-wayland-stub
+runtime_dir=${XDG_RUNTIME_DIR:?}
+socket_name=${WAYLAND_DISPLAY:-wayland-0}
+waynergy_child=
+stub_child=
+
+desktop_ready()
+{
+    sessions=$(loginctl list-sessions --no-legend 2>/dev/null |
+        awk -v uid="${MONISWITCH_DESKTOP_UID:?}" '$2 == uid { print $1 }')
+    for session in $sessions; do
+        properties=$(loginctl show-session "$session" \
+            --property=Active \
+            --property=Class \
+            --property=Remote \
+            --property=Type 2>/dev/null || true)
+        case "$properties" in *"Active=yes"*) ;; *) continue ;; esac
+        case "$properties" in *"Class=user"*) ;; *) continue ;; esac
+        case "$properties" in *"Remote=no"*) ;; *) continue ;; esac
+        case "$properties" in *"Type=wayland"*) return 0 ;; esac
+    done
+    return 1
+}
+
+stop_children()
+{
+    if [ -n "$waynergy_child" ] && kill -0 "$waynergy_child" 2>/dev/null; then
+        # Waynergy 0.0.17 signals its whole process group while cleaning up
+        # with clipboard disabled. Isolating it and closing it directly avoids
+        # taking down the supervisor or leaving a crash dump.
+        kill -KILL "$waynergy_child" 2>/dev/null || true
+        wait "$waynergy_child" 2>/dev/null || true
+    fi
+    waynergy_child=
+
+    if [ -n "$stub_child" ] && kill -0 "$stub_child" 2>/dev/null; then
+        kill "$stub_child" 2>/dev/null || true
+        wait "$stub_child" 2>/dev/null || true
+    fi
+    stub_child=
+
+    rm -f -- "$runtime_dir/$socket_name" "$runtime_dir/$socket_name.lock"
+}
+
+start_stub()
+{
+    rm -f -- "$runtime_dir/$socket_name" "$runtime_dir/$socket_name.lock"
+    "$wayland_stub" "$socket_name" &
+    stub_child=$!
+
+    attempts=0
+    while [ "$attempts" -lt 5 ]; do
+        if [ -S "$runtime_dir/$socket_name" ]; then
+            return 0
+        fi
+        if ! kill -0 "$stub_child" 2>/dev/null; then
+            wait "$stub_child" 2>/dev/null || true
+            stub_child=
+            return 1
+        fi
+        attempts=$((attempts + 1))
+        sleep 1
+    done
+
+    return 1
+}
+
+shutdown()
+{
+    stop_children
+    exit 0
+}
+
+trap shutdown INT TERM
+
+while :; do
+    if desktop_ready; then
+        stop_children
+        sleep 1
+        continue
+    fi
+
+    if [ -z "$stub_child" ] || ! kill -0 "$stub_child" 2>/dev/null; then
+        stop_children
+        if ! start_stub; then
+            sleep 2
+            continue
+        fi
+    fi
+
+    if [ -z "$waynergy_child" ] || ! kill -0 "$waynergy_child" 2>/dev/null; then
+        if [ -n "$waynergy_child" ]; then
+            wait "$waynergy_child" 2>/dev/null || true
+        fi
+        setsid "$waynergy" \
+            --backend uinput \
+            --width "${MONISWITCH_WIDTH:?}" \
+            --height "${MONISWITCH_HEIGHT:?}" \
+            --no-clip \
+            --logfile /dev/null \
+            --loglevel warn &
+        waynergy_child=$!
+    fi
+
+    sleep 1
+done

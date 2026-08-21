@@ -1,0 +1,49 @@
+[Unit]
+Description=Moniswitch pre-login keyboard and mouse receiver
+After=network-online.target systemd-udev-settle.service
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=moniswitch-input
+Group=moniswitch-input
+Environment=WAYNERGY_CONF_PATH=/etc/moniswitch-waynergy
+Environment=MONISWITCH_DESKTOP_UID=@DESKTOP_UID@
+Environment=MONISWITCH_WIDTH=@WIDTH@
+Environment=MONISWITCH_HEIGHT=@HEIGHT@
+Environment=LD_LIBRARY_PATH=/usr/local/libexec/moniswitch-waynergy/lib
+Environment=XDG_RUNTIME_DIR=/run/moniswitch-waynergy
+Environment=WAYLAND_DISPLAY=wayland-0
+ExecStart=/usr/local/libexec/moniswitch-waynergy/moniswitch-waynergy-boot
+Restart=on-failure
+RestartSec=2
+TimeoutStopSec=5
+KillMode=mixed
+LimitCORE=0
+RuntimeDirectory=moniswitch-waynergy
+RuntimeDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectClock=true
+ProtectControlGroups=true
+ProtectHostname=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectProc=invisible
+ProcSubset=pid
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+CapabilityBoundingSet=
+DevicePolicy=closed
+DeviceAllow=/dev/uinput rw
+
+[Install]
+WantedBy=multi-user.target
