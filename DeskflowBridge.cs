@@ -50,6 +50,7 @@ internal static partial class DeskflowBridge
         text.AppendLine("end");
         text.AppendLine();
         text.AppendLine("section: options");
+        text.AppendLine("    heartbeat = 3000");
         text.AppendLine("    switchDelay = 250");
         text.AppendLine("    clipboardSharing = true");
         text.AppendLine($"    keystroke({hotkey.DeskflowText}) = switchInDirection(right)");
@@ -188,6 +189,7 @@ internal static partial class DeskflowBridge
         text.AppendLine("[server]");
         text.AppendLine("externalConfig=true");
         text.AppendLine($"externalConfigFile={serverConfig}");
+        text.AppendLine("protocol=barrier");
         File.WriteAllText(coreSettings, text.ToString());
     }
 
@@ -218,38 +220,72 @@ internal static partial class DeskflowBridge
 
     private static string IniPath(string path) => path.Replace('\\', '/');
 
-    private static void OptimizeCoreSettings(string path)
+    internal static void OptimizeCoreSettings(string path)
     {
-        var lines = File.ReadAllLines(path);
+        var lines = File.ReadAllLines(path).ToList();
         var inLogSection = false;
+        var inServerSection = false;
+        var foundServerSection = false;
+        var foundServerProtocol = false;
         var changed = false;
 
-        for (var index = 0; index < lines.Length; index++)
+        for (var index = 0; index < lines.Count; index++)
         {
             var trimmed = lines[index].Trim();
             if (trimmed.StartsWith('[') && trimmed.EndsWith(']'))
             {
+                if (inServerSection && !foundServerProtocol)
+                {
+                    lines.Insert(index, "protocol=barrier");
+                    changed = true;
+                    index++;
+                    trimmed = lines[index].Trim();
+                }
+
                 inLogSection = string.Equals(trimmed, "[log]", StringComparison.OrdinalIgnoreCase);
+                inServerSection = string.Equals(trimmed, "[server]", StringComparison.OrdinalIgnoreCase);
+                foundServerSection |= inServerSection;
                 continue;
             }
 
-            if (!inLogSection)
+            if (inServerSection && trimmed.StartsWith("protocol=", StringComparison.OrdinalIgnoreCase))
             {
-                continue;
+                foundServerProtocol = true;
+                if (!string.Equals(trimmed, "protocol=barrier", StringComparison.OrdinalIgnoreCase))
+                {
+                    lines[index] = "protocol=barrier";
+                    changed = true;
+                }
             }
 
-            if (trimmed.StartsWith("level=", StringComparison.OrdinalIgnoreCase) &&
-                !string.Equals(trimmed, "level=WARNING", StringComparison.OrdinalIgnoreCase))
+            if (inLogSection)
             {
-                lines[index] = "level=WARNING";
-                changed = true;
+                if (trimmed.StartsWith("level=", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(trimmed, "level=WARNING", StringComparison.OrdinalIgnoreCase))
+                {
+                    lines[index] = "level=WARNING";
+                    changed = true;
+                }
+                else if (trimmed.StartsWith("toFile=", StringComparison.OrdinalIgnoreCase) &&
+                         !string.Equals(trimmed, "toFile=false", StringComparison.OrdinalIgnoreCase))
+                {
+                    lines[index] = "toFile=false";
+                    changed = true;
+                }
             }
-            else if (trimmed.StartsWith("toFile=", StringComparison.OrdinalIgnoreCase) &&
-                     !string.Equals(trimmed, "toFile=false", StringComparison.OrdinalIgnoreCase))
-            {
-                lines[index] = "toFile=false";
-                changed = true;
-            }
+        }
+
+        if (inServerSection && !foundServerProtocol)
+        {
+            lines.Add("protocol=barrier");
+            changed = true;
+        }
+        else if (!foundServerSection)
+        {
+            lines.Add(string.Empty);
+            lines.Add("[server]");
+            lines.Add("protocol=barrier");
+            changed = true;
         }
 
         if (changed)

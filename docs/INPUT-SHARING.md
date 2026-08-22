@@ -48,6 +48,19 @@ Install Waynergy and `wl-clipboard`, then copy these templates:
 - `integration/waynergy/server-fingerprint.example` →
   `~/.config/waynergy/tls/hash/WINDOWS_LAN_IP`
 
+Waynergy 0.0.17 can send an initial clipboard notification before its protocol
+hello. Strict Deskflow releases reject that packet order immediately. If
+Waynergy is built from source, apply the included compatibility fix before
+building it:
+
+```sh
+./integration/waynergy/patch-waynergy-handshake.sh \
+  /path/to/waynergy/src/uSynergy.c
+```
+
+The fix queues that early clipboard update until the handshake is complete. It
+does not disable clipboard sharing.
+
 Edit the Windows LAN address, Linux screen name, and username in the log path.
 Create the hash directory, then store the pin copied by Moniswitch in a file
 named exactly after the configured Windows host:

@@ -127,6 +127,12 @@ If Linux is still showing its login screen, Hyprland has not started and the
 properly installed boot-level `uinput` receiver for pre-login control, or log in
 locally and let the normal user service connect after the compositor starts.
 
+If Waynergy logs `Protocol error` immediately after claiming it connected,
+clipboard startup may have beaten the protocol hello. Running once with
+`--no-clip` can confirm the diagnosis, but it is not the finished fix. Apply
+`integration/waynergy/patch-waynergy-handshake.sh` to Waynergy 0.0.17's
+`src/uSynergy.c`, rebuild it, and keep clipboard enabled.
+
 The server certificate is pinned by the Linux client. If the Windows TLS
 identity was regenerated, the old pin is supposed to fail. Security behaving as
 designed can be inconvenient in a remarkably authentic way.

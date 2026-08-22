@@ -68,9 +68,23 @@ try
     Require(coreText.Contains("tlsEnabled=true"), "TLS is not enabled");
     Require(coreText.Contains("toFile=false"), "file logging is not disabled");
     Require(coreText.Contains("externalConfig=true"), "external routing config is not enabled");
+    Require(coreText.Contains("protocol=barrier"), "Waynergy-compatible protocol is not enabled");
+
+    var legacyCoreSettings = Path.Combine(root, "legacy-deskflow.conf");
+    File.WriteAllText(
+        legacyCoreSettings,
+        "[log]\nlevel=DEBUG\ntoFile=true\n\n[server]\nexternalConfig=true\n");
+    DeskflowBridge.OptimizeCoreSettings(legacyCoreSettings);
+    var optimizedCoreText = File.ReadAllText(legacyCoreSettings);
+    Require(optimizedCoreText.Contains("level=WARNING"), "legacy log level was not optimized");
+    Require(optimizedCoreText.Contains("toFile=false"), "legacy file logging was not disabled");
+    Require(
+        optimizedCoreText.Contains("protocol=barrier"),
+        "legacy Deskflow settings were not upgraded for Waynergy");
 
     var serverText = File.ReadAllText(serverConfig);
     Require(serverText.Contains("clipboardSharing = true"), "clipboard sharing is not enabled");
+    Require(serverText.Contains("heartbeat = 3000"), "Waynergy heartbeat is not enabled");
     Require(serverText.Contains("keystroke(Control+Alt+M)"), "shortcut was not written");
 
     var firewallRules = LanCanvasController.BuildFirewallRules("192.0.2.10");
@@ -83,6 +97,32 @@ try
     Require(
         firewallRules.Contains("allow from 192.0.2.10 to any port 47998:48000 proto udp"),
         "Sunshine UDP range is missing");
+
+    var waynergyUnitPath = Path.Combine(
+        Directory.GetCurrentDirectory(),
+        "integration",
+        "waynergy",
+        "moniswitch-waynergy.service");
+    var waynergyUnit = File.ReadAllText(waynergyUnitPath);
+    Require(
+        waynergyUnit.Contains("WAYLAND_DISPLAY=\"$${candidate##*/}\"", StringComparison.Ordinal),
+        "systemd will consume the Wayland socket shell expansion");
+    Require(
+        !waynergyUnit.Contains("WAYLAND_DISPLAY=\"${candidate##*/}\"", StringComparison.Ordinal),
+        "unescaped Wayland socket shell expansion returned");
+
+    var waynergyHandshakePatchPath = Path.Combine(
+        Directory.GetCurrentDirectory(),
+        "integration",
+        "waynergy",
+        "patch-waynergy-handshake.sh");
+    var waynergyHandshakePatch = File.ReadAllText(waynergyHandshakePatchPath);
+    Require(
+        waynergyHandshakePatch.Contains("!context->m_hasReceivedHello", StringComparison.Ordinal),
+        "Waynergy can send clipboard packets before HelloBack");
+    Require(
+        waynergyHandshakePatch.Contains("keep the update queued until then", StringComparison.Ordinal),
+        "Waynergy handshake compatibility guard is missing");
 
     // TryGetServerFingerprint expects <settings>/deskflow/tls. Verify the
     // generated identity directly by placing it in that production layout.
