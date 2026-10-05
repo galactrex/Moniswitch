@@ -516,7 +516,9 @@ internal sealed class SettingsForm : Form
         var sourceA = UiTheme.ControlLabel(
             _settingsStore.Current.InputSharing.Enabled ? "Source A / Windows" : "Source A");
         var sourceB = UiTheme.ControlLabel(
-            _settingsStore.Current.InputSharing.Enabled ? "Source B / Linux" : "Source B");
+            _settingsStore.Current.InputSharing.Enabled
+                ? $"Source B / {RemotePlatformText.Name(_settingsStore.Current.InputSharing.RemotePlatform)}"
+                : "Source B");
         sourceB.Margin = new Padding(5, 0, 0, 0);
         _quickInputA.Margin = new Padding(0, 0, 5, 0);
         _quickInputB.Margin = new Padding(5, 0, 0, 0);

@@ -24,7 +24,8 @@ body:
         - Display detection or DDC/CI
         - Input routing
         - Saved routes or shortcut
-        - Input Link
+        - Input Link (Linux)
+        - Input Link (Mac)
         - LAN Canvas
         - Startup, tray, or interface
         - Build or packaging
@@ -38,6 +39,19 @@ body:
       options:
         - Windows 11
         - Windows 10
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: other-computer
+    attributes:
+      label: Other computer
+      options:
+        - None (display routing only)
+        - Linux, Wayland
+        - Linux, X11
+        - Linux, login screen
+        - macOS
         - Other
     validations:
       required: true

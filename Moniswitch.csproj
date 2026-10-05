@@ -9,6 +9,7 @@
     <RootNamespace>Moniswitch</RootNamespace>
     <ApplicationTitle>Moniswitch</ApplicationTitle>
     <Product>Moniswitch</Product>
+    <Version>0.2.0</Version>
     <Company>Galactrex</Company>
     <Authors>Galactrex</Authors>
     <Copyright>© 2026 Galactrex</Copyright>

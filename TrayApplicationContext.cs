@@ -567,7 +567,8 @@ internal sealed class TrayApplicationContext : ApplicationContext
         if (remote && (bridge is null ||
             !await bridge.WaitForConnectedClientAsync(TimeSpan.FromSeconds(12))))
         {
-            throw new InvalidOperationException("Linux input is offline. The monitor was not changed.");
+            throw new InvalidOperationException(
+                $"{RemotePlatformText.Name(settings.InputSharing.RemotePlatform)} input is offline. The monitor was not changed.");
         }
 
         // Deskflow installs its hook asynchronously and consumes remote keys.

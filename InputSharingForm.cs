@@ -7,6 +7,12 @@ internal sealed class InputSharingForm : Form
     private readonly TextBox _linuxName;
     private readonly TextBox _deskflow;
     private readonly CheckBox _startWithWindows;
+    private readonly CheckBox _macPcShortcuts;
+    private readonly Button _linuxPlatform;
+    private readonly Button _macPlatform;
+    private readonly Label _route;
+    private readonly Label _remoteLabel;
+    private RemotePlatform _platform;
     private readonly Label _status;
     private readonly Panel _statusLamp;
     private readonly Button _saveButton;
@@ -26,7 +32,7 @@ internal sealed class InputSharingForm : Form
         Font = UiTheme.Font();
         FormBorderStyle = FormBorderStyle.FixedDialog;
         StartPosition = FormStartPosition.CenterParent;
-        ClientSize = new Size(680, 566);
+        ClientSize = new Size(680, 700);
         MaximizeBox = false;
         MinimizeBox = false;
         ShowInTaskbar = false;
@@ -58,7 +64,7 @@ internal sealed class InputSharingForm : Form
             Dock = DockStyle.Fill,
             BackColor = UiTheme.Surface,
             ColumnCount = 2,
-            RowCount = 8,
+            RowCount = 10,
             Margin = Padding.Empty,
             Padding = Padding.Empty
         };
@@ -68,31 +74,39 @@ internal sealed class InputSharingForm : Form
         grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 52));
         grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 52));
         grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 52));
+        grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 52));
         grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+        grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
         grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
         grid.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         grid.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
         body.Controls.Add(grid);
 
-        var route = UiTheme.SignalLabel("KEYBOARD / MOUSE / TEXT CLIPBOARD / TLS", UiTheme.Success);
-        route.Font = UiTheme.MonoFont(10, FontStyle.Bold);
-        route.Anchor = AnchorStyles.Left;
-        grid.Controls.Add(route, 0, 0);
-        grid.SetColumnSpan(route, 2);
+        _route = UiTheme.SignalLabel("KEYBOARD / MOUSE / TLS", UiTheme.Success);
+        _route.Font = UiTheme.MonoFont(10, FontStyle.Bold);
+        _route.Anchor = AnchorStyles.Left;
+        grid.Controls.Add(_route, 0, 0);
+        grid.SetColumnSpan(_route, 2);
+
+        _linuxPlatform = UiTheme.Button("LINUX", ButtonTone.Ghost);
+        _macPlatform = UiTheme.Button("MAC", ButtonTone.Ghost);
+        _linuxPlatform.Click += (_, _) => SelectPlatform(RemotePlatform.Linux);
+        _macPlatform.Click += (_, _) => SelectPlatform(RemotePlatform.MacOS);
+        AddField(grid, 1, "Other computer", BuildPlatformField());
 
         _windowsName = TextBox();
         _linuxName = TextBox();
         _deskflow = TextBox();
-        AddField(grid, 1, "Windows name", _windowsName);
-        AddField(grid, 2, "Linux name", _linuxName);
-        AddField(grid, 3, "Deskflow", BuildPathField(_deskflow));
+        AddField(grid, 2, "Windows name", _windowsName);
+        _remoteLabel = AddField(grid, 3, "Linux name", _linuxName);
+        AddField(grid, 4, "Deskflow", BuildPathField(_deskflow));
 
         var copyFingerprint = UiTheme.Button("COPY SERVER PIN", ButtonTone.Ghost);
         copyFingerprint.Dock = DockStyle.Left;
         copyFingerprint.Size = new Size(176, 38);
         copyFingerprint.Margin = new Padding(0, 5, 0, 5);
         copyFingerprint.Click += (_, _) => CopyServerFingerprint();
-        AddField(grid, 4, "TLS pin", copyFingerprint);
+        AddField(grid, 5, "TLS pin", copyFingerprint);
 
         _startWithWindows = new CheckBox
         {
@@ -104,14 +118,26 @@ internal sealed class InputSharingForm : Form
             Font = UiTheme.MonoFont(9.5f, FontStyle.Bold),
             Text = "START MONISWITCH WITH WINDOWS"
         };
-        AddField(grid, 5, "Startup", _startWithWindows);
+        AddField(grid, 6, "Startup", _startWithWindows);
+
+        _macPcShortcuts = new CheckBox
+        {
+            AutoSize = true,
+            Anchor = AnchorStyles.Left,
+            BackColor = UiTheme.Surface,
+            ForeColor = UiTheme.Text,
+            FlatStyle = FlatStyle.Flat,
+            Font = UiTheme.MonoFont(9.5f, FontStyle.Bold),
+            Text = "CTRL ACTS AS COMMAND ON THE MAC"
+        };
+        AddField(grid, 7, "Mac keys", _macPcShortcuts);
 
         var note = UiTheme.SignalLabel(
             "PRIVATE VALUES STAY ON THIS PC / ONE BRIDGE / NO INPUT POLLING",
             UiTheme.Faint);
         note.Anchor = AnchorStyles.Left | AnchorStyles.Bottom;
         note.Margin = new Padding(0, 0, 0, 12);
-        grid.Controls.Add(note, 1, 6);
+        grid.Controls.Add(note, 1, 8);
 
         var actions = new TableLayoutPanel
         {
@@ -134,7 +160,7 @@ internal sealed class InputSharingForm : Form
         _stopButton.Click += (_, _) => StopLink();
         actions.Controls.Add(_saveButton, 0, 0);
         actions.Controls.Add(_stopButton, 1, 0);
-        grid.Controls.Add(actions, 0, 7);
+        grid.Controls.Add(actions, 0, 9);
         grid.SetColumnSpan(actions, 2);
 
         var footer = new Panel
@@ -245,12 +271,61 @@ internal sealed class InputSharingForm : Form
         Margin = new Padding(0, 6, 0, 6)
     };
 
-    private static void AddField(TableLayoutPanel grid, int row, string label, Control control)
+    private static Label AddField(TableLayoutPanel grid, int row, string label, Control control)
     {
         var fieldLabel = UiTheme.ControlLabel(label);
         fieldLabel.Anchor = AnchorStyles.Left;
         grid.Controls.Add(fieldLabel, 0, row);
         grid.Controls.Add(control, 1, row);
+        return fieldLabel;
+    }
+
+    private Control BuildPlatformField()
+    {
+        var field = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            BackColor = UiTheme.Surface,
+            ColumnCount = 3,
+            RowCount = 1,
+            Margin = Padding.Empty,
+            Padding = Padding.Empty
+        };
+        field.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 112));
+        field.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 112));
+        field.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        _linuxPlatform.Dock = DockStyle.Fill;
+        _macPlatform.Dock = DockStyle.Fill;
+        _linuxPlatform.Margin = new Padding(0, 6, 6, 6);
+        _macPlatform.Margin = new Padding(0, 6, 0, 6);
+        field.Controls.Add(_linuxPlatform, 0, 0);
+        field.Controls.Add(_macPlatform, 1, 0);
+        return field;
+    }
+
+    private void SelectPlatform(RemotePlatform platform)
+    {
+        // Carry an untouched default name across so a Mac is not labelled
+        // linux-pc. A name the person typed is left exactly as written.
+        var previousDefault = RemotePlatformText.DefaultScreenName(_platform);
+        if (platform != _platform &&
+            (string.IsNullOrWhiteSpace(_linuxName.Text) ||
+             string.Equals(_linuxName.Text.Trim(), previousDefault, StringComparison.Ordinal)))
+        {
+            _linuxName.Text = RemotePlatformText.DefaultScreenName(platform);
+        }
+
+        _platform = platform;
+        var mac = platform == RemotePlatform.MacOS;
+        foreach (var (button, selected) in new[] { (_linuxPlatform, !mac), (_macPlatform, mac) })
+        {
+            button.ForeColor = selected ? UiTheme.Text : UiTheme.Faint;
+            button.FlatAppearance.BorderColor = selected ? UiTheme.Accent : UiTheme.Border;
+        }
+
+        _remoteLabel.Text = $"{RemotePlatformText.Name(platform)} name".ToUpperInvariant();
+        _macPcShortcuts.Enabled = mac;
+        _route.Text = mac ? "KEYBOARD / MOUSE / CLIPBOARD / TLS" : "KEYBOARD / MOUSE / TLS";
     }
 
     private Control BuildPathField(TextBox textBox)
@@ -293,6 +368,9 @@ internal sealed class InputSharingForm : Form
         var settings = _settingsStore.Current.InputSharing;
         _windowsName.Text = settings.WindowsScreenName;
         _linuxName.Text = settings.LinuxScreenName;
+        _macPcShortcuts.Checked = settings.MacPcShortcuts;
+        _platform = settings.RemotePlatform;
+        SelectPlatform(settings.RemotePlatform);
         _deskflow.Text = settings.DeskflowExecutablePath ?? DeskflowBridge.FindExecutable() ?? string.Empty;
         _startWithWindows.Checked = settings.StartWithWindows;
         SetStatus(settings.Enabled ? "LINK CONFIGURED" : "LINK OFF", success: settings.Enabled);
@@ -326,6 +404,8 @@ internal sealed class InputSharingForm : Form
             var settings = _settingsStore.Current.InputSharing;
             settings.WindowsScreenName = windows;
             settings.LinuxScreenName = linux;
+            settings.RemotePlatform = _platform;
+            settings.MacPcShortcuts = _macPcShortcuts.Checked;
             settings.DeskflowExecutablePath = executable;
             settings.StartWithWindows = _startWithWindows.Checked;
             settings.Enabled = true;

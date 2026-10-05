@@ -86,6 +86,7 @@ Display routing is now complete. Add only what the setup needs:
 
 - [Input Link](INPUT-SHARING.md) moves keyboard and mouse between Windows and
   Linux.
+- [Input Link for Mac](MACOS.md) does the same with a Mac.
 - [LAN Canvas](LAN-CANVAS.md) streams the Linux desktop to one monitor or the
   full Windows display arrangement.
 

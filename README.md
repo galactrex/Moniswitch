@@ -1,11 +1,23 @@
 # Moniswitch
 
-**Switch monitor inputs, keyboard, and mouse from one Windows control surface.**
+**One shortcut moves your monitor, keyboard, and mouse between Windows, Linux,
+and macOS.**
 
-Moniswitch is a free, open-source Windows monitor input switcher and software
-KVM. It uses DDC/CI to route individual monitors between HDMI, DisplayPort,
-USB-C, DVI, and other reported inputs. Optional LAN tools move keyboard, mouse,
-and a Linux desktop without buying another collection of boxes.
+[![Latest release](https://img.shields.io/github/v/release/galactrex/Moniswitch?label=release)](https://github.com/galactrex/Moniswitch/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/galactrex/Moniswitch/total)](https://github.com/galactrex/Moniswitch/releases)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6)
+![Linux](https://img.shields.io/badge/Linux-X11%20%7C%20Wayland-FCC624)
+![macOS](https://img.shields.io/badge/macOS-experimental-lightgrey)
+
+Moniswitch is a free, open-source software KVM switch and DDC/CI monitor input
+switcher. It runs on Windows and routes each monitor between HDMI,
+DisplayPort, USB-C, DVI, and other reported inputs, then hands the same
+keyboard and mouse to the computer now on screen: a Linux PC or a Mac. Think
+Synergy, Barrier, or Input Leap, joined to the monitor's own input switch, so
+video and input always move together.
+
+No hardware KVM, no USB switch, no account, and no cloud service.
 
 The useful version of the idea is simple: keep every monitor connected, then
 choose which computer gets each screen. The buttons can remain behind the
@@ -21,7 +33,8 @@ monitor where the manufacturer apparently intended them to become folklore.
 - Makes the shortcut target explicit by Windows display number and monitor
   model in both the main window and notification-area menu.
 - Shares keyboard and mouse between Windows and Linux through Deskflow and
-  Waynergy.
+  Waynergy, or between Windows and macOS through the Deskflow client.
+- Maps Windows shortcuts onto a Mac, so Ctrl+C still copies.
 - Can start with Windows while the Linux user service retries after restarts,
   keeping Input Link available without reopening both tools by hand.
 - Streams one Linux desktop to one selected monitor or across the full Windows
@@ -50,12 +63,27 @@ The complete first-run guide is in
 but keeps showing DisplayPort, go directly to
 [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md). That problem has paperwork.
 
+## Platform support
+
+| Platform | Role | Keyboard and mouse | Clipboard | Status |
+|---|---|---|---|---|
+| Windows 10 / 11 | Runs Moniswitch, switches the monitors, owns the keyboard and mouse | Shares out | With a Mac | Tested |
+| Linux, Hyprland and other wlroots Wayland | Other computer | Waynergy | Off for safety | Tested |
+| Linux, X11 desktops | Other computer | Deskflow client | Off for safety | Supported |
+| Linux, login screen, KDE Plasma, GNOME | Other computer | System input receiver | Off | Beta |
+| macOS | Other computer | Deskflow client | Yes | Experimental |
+
+Moniswitch itself is a Windows app because the monitor commands come from the
+Windows GPU. The other computer only needs a cable to the monitor and the
+receiver for its platform.
+
 ## Choose the setup you need
 
 | Setup | Video | Keyboard and mouse | Extra software |
 |---|---|---|---|
 | Display routing | Physical monitor cables | Stays on each computer | None |
 | Display routing + Input Link | Physical monitor cables | Moves between Windows and Linux | Deskflow + Waynergy |
+| Display routing + Input Link for Mac | Physical monitor cables | Moves between Windows and macOS | Deskflow on both |
 | LAN Canvas | Linux desktop streamed over LAN | Uses Input Link | Sunshine + Moonlight + SSH |
 
 Display routing is the core. Input Link and LAN Canvas are optional and remain
@@ -94,6 +122,14 @@ interrogating the network for sport.
 
 See [`docs/INPUT-SHARING.md`](docs/INPUT-SHARING.md).
 
+### Input Link for Mac
+
+- Both computers on the same trusted local network.
+- Deskflow 1.26 or newer on Windows and on the Mac.
+- Accessibility permission for Deskflow on the Mac.
+
+See [`docs/MACOS.md`](docs/MACOS.md).
+
 ### LAN Canvas
 
 - Moonlight and OpenSSH Client on Windows.
@@ -128,6 +164,7 @@ machine-specific identifiers are rejected.
 - [Getting started](docs/GETTING-STARTED.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
 - [Windows-Linux input sharing](docs/INPUT-SHARING.md)
+- [Windows-Mac input sharing](docs/MACOS.md)
 - [LAN Canvas](docs/LAN-CANVAS.md)
 - [Runtime footprint](docs/PERFORMANCE.md)
 - [Privacy boundary](PRIVACY.md)

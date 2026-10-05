@@ -29,10 +29,13 @@ internal static partial class DeskflowBridge
     public static string GenerateServerConfiguration(
         string windowsScreenName,
         string linuxScreenName,
-        HotkeyBinding hotkey)
+        HotkeyBinding hotkey,
+        RemotePlatform platform = RemotePlatform.Linux,
+        bool macPcShortcuts = true)
     {
         var windows = SanitizeScreenName(windowsScreenName, "windows-pc");
-        var linux = SanitizeScreenName(linuxScreenName, "linux-pc");
+        var linux = SanitizeScreenName(linuxScreenName, RemotePlatformText.DefaultScreenName(platform));
+        var mac = platform == RemotePlatform.MacOS;
 
         // F23 and F24 are internal, modifier-free control signals sent only
         // after the user's public shortcut is fully released. Explicit screen
@@ -42,15 +45,24 @@ internal static partial class DeskflowBridge
         text.AppendLine("section: screens");
         text.AppendLine($"    {windows}:");
         text.AppendLine($"    {linux}:");
+        if (mac && macPcShortcuts)
+        {
+            // Deskflow's macOS client types Super as Command. Swapping the two
+            // keeps Windows muscle memory: Ctrl+C copies, Ctrl+Tab switches
+            // apps, and the Windows key becomes Control on the Mac.
+            text.AppendLine("        ctrl = super");
+            text.AppendLine("        super = ctrl");
+        }
         text.AppendLine("end");
         text.AppendLine();
         text.AppendLine("section: options");
         text.AppendLine("    heartbeat = 3000");
         text.AppendLine("    switchDelay = 250");
         // Waynergy 0.0.17 can lose framing on newer multi-format clipboard
-        // payloads. Keep the control channel input-only so clipboard data can
-        // never take keyboard and mouse down with it.
-        text.AppendLine("    clipboardSharing = false");
+        // payloads. Keep that channel input-only so clipboard data can never
+        // take keyboard and mouse down with it. A Mac runs the full Deskflow
+        // client, which parses every clipboard format it advertises.
+        text.AppendLine($"    clipboardSharing = {(mac ? "true" : "false")}");
         text.AppendLine(
             $"    keystroke({hotkey.DeskflowLocalCommandText}) = switchToScreen({windows})");
         text.AppendLine(
@@ -63,11 +75,14 @@ internal static partial class DeskflowBridge
         string directoryPath,
         string windowsScreenName,
         string linuxScreenName,
-        HotkeyBinding hotkey)
+        HotkeyBinding hotkey,
+        RemotePlatform platform = RemotePlatform.Linux,
+        bool macPcShortcuts = true)
     {
         Directory.CreateDirectory(directoryPath);
         var path = Path.Combine(directoryPath, "deskflow-server.conf");
-        File.WriteAllText(path, GenerateServerConfiguration(windowsScreenName, linuxScreenName, hotkey));
+        File.WriteAllText(path, GenerateServerConfiguration(
+            windowsScreenName, linuxScreenName, hotkey, platform, macPcShortcuts));
         return path;
     }
 
@@ -99,13 +114,17 @@ internal static partial class DeskflowBridge
                 deskflowDirectory,
                 settings.WindowsScreenName,
                 settings.LinuxScreenName,
-                hotkey);
+                hotkey,
+                settings.RemotePlatform,
+                settings.MacPcShortcuts);
             var coreSettings = Path.Combine(deskflowDirectory, "Deskflow.conf");
             EnsureCoreSettings(coreSettings, deskflowDirectory, settings.WindowsScreenName, serverConfiguration);
             OptimizeCoreSettings(coreSettings);
             return DeskflowServerController.StartOrAttach(executable, coreSettings, serverConfiguration,
                 SanitizeScreenName(settings.WindowsScreenName, "windows-pc"),
-                SanitizeScreenName(settings.LinuxScreenName, "linux-pc"));
+                SanitizeScreenName(
+                    settings.LinuxScreenName,
+                    RemotePlatformText.DefaultScreenName(settings.RemotePlatform)));
         }
         catch (Exception exception)
         {

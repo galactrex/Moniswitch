@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Moniswitch;
 
@@ -32,10 +33,29 @@ internal sealed class InputSharingSettings
     public bool Enabled { get; set; }
     public bool StartWithWindows { get; set; } = false;
     public string WindowsScreenName { get; set; } = "windows-pc";
+    // Kept under its original JSON name so existing settings still load. It
+    // names whichever computer receives input: Linux or macOS.
     public string LinuxScreenName { get; set; } = "linux-pc";
+    public RemotePlatform RemotePlatform { get; set; } = RemotePlatform.Linux;
+    public bool MacPcShortcuts { get; set; } = true;
     public string? WindowsProfileId { get; set; }
     public string? LinuxProfileId { get; set; }
     public string? DeskflowExecutablePath { get; set; }
+}
+
+internal enum RemotePlatform
+{
+    Linux,
+    MacOS
+}
+
+internal static class RemotePlatformText
+{
+    public static string Name(RemotePlatform platform) =>
+        platform == RemotePlatform.MacOS ? "Mac" : "Linux";
+
+    public static string DefaultScreenName(RemotePlatform platform) =>
+        platform == RemotePlatform.MacOS ? "mac-pc" : "linux-pc";
 }
 
 internal sealed class SwitchProfile
@@ -50,7 +70,8 @@ internal sealed class SettingsStore
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
-        WriteIndented = true
+        WriteIndented = true,
+        Converters = { new JsonStringEnumConverter() }
     };
 
     private readonly object _gate = new();

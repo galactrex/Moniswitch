@@ -4,6 +4,8 @@ Moniswitch keeps display control on Windows. Deskflow carries keyboard and mouse
 input from Windows; Waynergy receives it on wlroots compositors such as Hyprland.
 The connection uses TLS and a pinned server fingerprint.
 
+Sharing with a Mac instead? See [`MACOS.md`](MACOS.md).
+
 ## Topology
 
 - Windows listens on TCP port `24800` through `deskflow-core`.
