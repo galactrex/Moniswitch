@@ -1,17 +1,16 @@
-# Windows–Mac input sharing
+# Windows and Mac input sharing
 
-Moniswitch runs on Windows and owns the shortcut. A Mac joins as the other
-computer: one press moves the shared monitor to the Mac's input and hands it
-the Windows keyboard and mouse. The next press brings both back.
+Press the shortcut. The monitor switches to the Mac, and the Windows keyboard
+and mouse go with it. Press it again and both come back.
 
-The Mac runs Deskflow's own client, so there are no patches and no extra
-drivers. Clipboard sharing is on for a Mac, because the full Deskflow client
-handles every clipboard format Windows offers.
+Moniswitch runs on Windows and owns the shortcut. The Mac runs Deskflow's own
+client: no patches, no extra drivers. Clipboard sharing is on for a Mac,
+because the full Deskflow client handles every clipboard format Windows sends.
 
-> **Status: experimental.** The Windows side, the generated configuration and
-> the pinned TLS handshake are tested against the real Deskflow 1.26 programs.
-> The launchd agent and the macOS permission steps have not yet been
-> confirmed on Mac hardware. Reports are welcome through the issue form.
+> **Status: experimental.** We tested the Windows side, the generated
+> configuration, and the pinned TLS handshake against the real Deskflow 1.26
+> programs. The launchd agent and the macOS permission steps have not met a
+> real Mac yet. If you have one, tell us how it went through the issue form.
 
 ## What you need
 
@@ -71,7 +70,7 @@ restart the receiver:
 launchctl kickstart -k "gui/$(id -u)/com.galactrex.moniswitch.input"
 ```
 
-Quit the Deskflow app itself if it is open; this receiver replaces it.
+Quit the Deskflow app itself if it is open. This receiver replaces it.
 
 ## Keyboard layout
 
@@ -80,7 +79,7 @@ keep working:
 
 | Windows key | On the Mac |
 |---|---|
-| Ctrl | ⌘ Command — Ctrl+C copies, Ctrl+Q quits |
+| Ctrl | ⌘ Command: Ctrl+C copies, Ctrl+Q quits |
 | Windows key | Control |
 | Alt | ⌥ Option |
 | Shift | Shift |

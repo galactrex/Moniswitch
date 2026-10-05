@@ -1,7 +1,7 @@
 # Moniswitch
 
-**One shortcut moves your monitor, keyboard, and mouse between Windows, Linux,
-and macOS.**
+**One shortcut moves the monitor, keyboard, and mouse to the other computer.
+Windows, Linux, or Mac.**
 
 [![Latest release](https://img.shields.io/github/v/release/galactrex/Moniswitch?label=release)](https://github.com/galactrex/Moniswitch/releases/latest)
 [![Downloads](https://img.shields.io/github/downloads/galactrex/Moniswitch/total)](https://github.com/galactrex/Moniswitch/releases)
@@ -10,14 +10,15 @@ and macOS.**
 ![Linux](https://img.shields.io/badge/Linux-X11%20%7C%20Wayland-FCC624)
 ![macOS](https://img.shields.io/badge/macOS-experimental-lightgrey)
 
-Moniswitch is a free, open-source software KVM switch and DDC/CI monitor input
-switcher. It runs on Windows and routes each monitor between HDMI,
-DisplayPort, USB-C, DVI, and other reported inputs, then hands the same
-keyboard and mouse to the computer now on screen: a Linux PC or a Mac. Think
-Synergy, Barrier, or Input Leap, joined to the monitor's own input switch, so
-video and input always move together.
+Moniswitch is a free, open-source software KVM and DDC/CI monitor input
+switcher. It runs on Windows, moves each monitor between HDMI, DisplayPort,
+USB-C, DVI, and other reported inputs, and hands the same keyboard and mouse to
+whichever computer is now on screen: a Linux PC or a Mac.
 
-No hardware KVM, no USB switch, no account, and no cloud service.
+Synergy, Barrier, and Input Leap share a keyboard. Moniswitch also moves the
+picture, so video and input switch together.
+
+No hardware KVM. No USB switch. No account.
 
 The useful version of the idea is simple: keep every monitor connected, then
 choose which computer gets each screen. The buttons can remain behind the
@@ -73,9 +74,9 @@ but keeps showing DisplayPort, go directly to
 | Linux, login screen, KDE Plasma, GNOME | Other computer | System input receiver | Off | Beta |
 | macOS | Other computer | Deskflow client | Yes | Experimental |
 
-Moniswitch itself is a Windows app because the monitor commands come from the
-Windows GPU. The other computer only needs a cable to the monitor and the
-receiver for its platform.
+Moniswitch runs on Windows because that is where the monitor commands come
+from. The other computer needs a cable to the monitor and the receiver for its
+platform. Nothing else.
 
 ## Choose the setup you need
 
