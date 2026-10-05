@@ -1,8 +1,8 @@
 # Windows–Linux input sharing
 
-Moniswitch keeps display control on Windows. Deskflow carries keyboard, mouse,
-and clipboard data from Windows; Waynergy receives it on wlroots compositors
-such as Hyprland. The connection uses TLS and a pinned server fingerprint.
+Moniswitch keeps display control on Windows. Deskflow carries keyboard and mouse
+input from Windows; Waynergy receives it on wlroots compositors such as Hyprland.
+The connection uses TLS and a pinned server fingerprint.
 
 ## Topology
 
@@ -12,14 +12,77 @@ such as Hyprland. The connection uses TLS and a pinned server fingerprint.
   with its `wlr` backend.
 - Both PCs remain connected to the same router. No USB switch is required.
 
+## Desktop-independent Linux input
+
+For Plasma, GNOME, Hyprland, or switching between desktops, use the optional
+**system input** mode. It keeps the patched `uinput` receiver and its virtual
+keyboard/mouse running through login, logout, and desktop changes. It does not
+use the active compositor's virtual-input protocol. Clipboard remains disabled.
+This targets the normal local desktop seat; KDE session behavior still needs
+verification on the user's installation.
+
+After installing and patching the pre-login receiver, run from Windows:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tools\Enable-LinuxSystemInput.ps1
+```
+
+The helper uses the existing local SSH settings, stages and tests the supervisor,
+then asks for the Linux sudo password in the terminal. It keeps the dedicated
+service account, pinned TLS certificate, and restricted `/dev/uinput` access.
+A user-service condition prevents the desktop receiver competing with it.
+No Windows connector mappings are changed.
+
+To restore the previous login/desktop split from a Linux terminal:
+
+```sh
+sudo sh ~/.local/state/Moniswitch/system-input/enable-system-input.sh --restore
+```
+
+The original supervisor and service fragments are backed up under
+`/var/lib/moniswitch-input/system-input-backup`.
+
+For an Xorg login screen, apply `integration/waynergy/patch-waynergy-uinput.py`
+to the Waynergy source tree before rebuilding the binary used by the pre-login
+installer. Waynergy 0.0.17 otherwise sends absolute movement from a device that
+Xorg/libinput treats as relative, so the greeter discards mouse movement.
+The same patch keeps screen edges in sync: Deskflow stops sending movement once
+its copy of the pointer reaches an edge, so when the Linux pointer has drifted,
+for example after the display reconnects during an input switch, reaching an
+edge pushes the Linux pointer onto that edge too instead of leaving an
+invisible wall. Rerunning the patch on an already patched tree adds only what
+is missing. `test-uinput-motion.py` checks the patched handlers without sending
+real input.
+
 ## One shortcut
 
 The shortcut under **Quick route** defaults to `Ctrl+Alt+M`. Recording a new
-shortcut updates Moniswitch and Deskflow together, then restarts the bridge.
+shortcut updates the private Deskflow control binding and restarts the bridge.
 
-Moniswitch observes the physical keypress without consuming it. Deskflow moves
-input control while Moniswitch changes the configured monitor input. The same
-shortcut returns both control and video to Windows.
+Moniswitch owns the physical shortcut. After every key in that shortcut is
+released, it sends Deskflow a reserved, modifier-free control signal: `F23`
+targets Windows and `F24` targets Linux. Quick route Source A is therefore the
+Windows input and Source B is the Linux input while Input Link is enabled. The
+explicit targets cannot drift after a restart, and the private keys are never
+sent to applications. Deskflow pointer-edge links are intentionally absent, so
+moving the mouse at an edge cannot silently undo the selected target.
+
+The shortcut is safe to press as soon as Moniswitch opens. A press during the
+launch-time display scan is queued, and a newly started Linux receiver gets a
+short connection window before Moniswitch moves the display. Repeated presses
+while either wait is in progress collapse into the same pending switch.
+
+The display buttons and saved routes use the same handoff for the configured
+Source A / Source B display. Moniswitch waits for Deskflow to report its target
+before sending the monitor command. If the monitor command fails, it attempts
+to restore the previous input target. It refreshes its shortcut observer ahead
+of Deskflow's hook so the return shortcut remains visible while input is remote.
+Deskflow INFO status is read in memory; file logging remains disabled.
+
+When login replaces the pre-login receiver with the desktop receiver, Moniswitch
+keeps the selected monitor route and restores input to the new connection once
+it settles. No Windows-to-Linux round trip is needed. Reconnecting a receiver
+does not take input away from Windows when the Windows source is selected.
 
 ## Windows / Input Link
 
@@ -27,6 +90,12 @@ Install Deskflow, then open **Input Link** in Moniswitch. Enter the Windows and
 Linux screen names, select `deskflow-core.exe`, and press **Save + Start**.
 Leave **Start Moniswitch with Windows** enabled if the link and global shortcut
 should return automatically after a Windows restart.
+
+Use Deskflow `1.26.0` build 167 or newer. Earlier 1.26 builds contain a TLS
+accept bug fixed by Deskflow after the stable 1.26.0 package. Moniswitch repairs
+its isolated server settings on every launch: TLS stays enabled, while Deskflow
+does not demand a separate client certificate from the already pinned Waynergy
+client.
 
 On the first start, Moniswitch creates an isolated Deskflow configuration and a
 3072-bit TLS identity under `%LocalAppData%\Moniswitch\deskflow`. Press
@@ -40,7 +109,7 @@ Firewall when other clients share the network.
 
 ## Linux / Waynergy
 
-Install Waynergy and `wl-clipboard`, then copy these templates:
+Install Waynergy, then copy these templates:
 
 - `integration/waynergy/config.ini.example` → `~/.config/waynergy/config.ini`
 - `integration/waynergy/moniswitch-waynergy.service` →
@@ -58,8 +127,9 @@ building it:
   /path/to/waynergy/src/uSynergy.c
 ```
 
-The fix queues that early clipboard update until the handshake is complete. It
-does not disable clipboard sharing.
+The compatibility patch remains useful for custom Waynergy builds, but the
+Moniswitch service disables clipboard traffic so parser failures cannot affect
+keyboard and mouse input.
 
 Edit the Windows LAN address, Linux screen name, and username in the log path.
 Create the hash directory, then store the pin copied by Moniswitch in a file
@@ -117,7 +187,7 @@ and builds a tiny private Wayland stub. The stub exposes only a standard
 keyboard-map seat; it provides no compositor, output, or input-injection
 globals. Waynergy can initialize without attaching to the login screen. The boot
 receiver retires when logind reports the user's real Wayland session; the
-normal `wlr` receiver then handles the desktop and clipboard.
+normal `wlr` receiver then handles the desktop.
 
 The installer detects the first connected Linux display mode. Pass width and
 height as the third and fourth arguments only when that detection is wrong:
@@ -135,12 +205,10 @@ sudo ./integration/waynergy/uninstall-boot-input.sh
 
 ## Clipboard
 
-Text clipboard sharing uses the same encrypted connection. Copy normally on
-the source computer, move control to the destination, then paste with that
-application's normal command. Most Linux terminals use `Ctrl+Shift+V`; desktop
-applications usually use `Ctrl+V`.
-
-Waynergy uses `wl-paste` event watchers. There is no clipboard polling loop.
+Clipboard sharing is disabled for the Waynergy bridge. Waynergy 0.0.17 can lose
+protocol framing on newer multi-format Deskflow payloads, which also takes down
+keyboard and mouse input. Moniswitch keeps this channel input-only until a
+compatible receiver can isolate clipboard failure from peripheral control.
 
 ## Windows service cleanup
 

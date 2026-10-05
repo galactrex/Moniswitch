@@ -1,5 +1,6 @@
 [Unit]
 Description=Moniswitch keyboard and mouse receiver
+ConditionPathExists=!/etc/systemd/system/moniswitch-waynergy-boot.service.d/50-all-sessions.conf
 StartLimitIntervalSec=0
 
 [Service]
@@ -7,7 +8,7 @@ Type=simple
 Environment=WAYNERGY_CONF_PATH=%h/.config/waynergy
 Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin
 Environment=XDG_RUNTIME_DIR=%t
-ExecStart=/bin/sh -c 'for candidate in "$XDG_RUNTIME_DIR"/wayland-*; do if [ -S "$candidate" ]; then export WAYLAND_DISPLAY="$${candidate##*/}"; exec /usr/bin/env waynergy --backend wlr --fatal-none --fatal-ebad --fatal-ebsy --fatal-timeout; fi; done; exit 75'
+ExecStart=/bin/sh -c 'for candidate in "$XDG_RUNTIME_DIR"/wayland-*; do if [ -S "$candidate" ]; then export WAYLAND_DISPLAY="$${candidate##*/}"; exec /usr/bin/env waynergy --backend wlr --no-clip --fatal-none --fatal-ebad --fatal-ebsy --fatal-timeout; fi; done; exit 75'
 Restart=always
 RestartSec=2
 

@@ -84,8 +84,8 @@ shown as numbered saved routes, while monitor model names remain visible.
 
 Display routing is now complete. Add only what the setup needs:
 
-- [Input Link](INPUT-SHARING.md) moves keyboard, mouse, and text clipboard
-  between Windows and Linux.
+- [Input Link](INPUT-SHARING.md) moves keyboard and mouse between Windows and
+  Linux.
 - [LAN Canvas](LAN-CANVAS.md) streams the Linux desktop to one monitor or the
   full Windows display arrangement.
 

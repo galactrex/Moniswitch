@@ -30,7 +30,7 @@ internal sealed class LanCanvasSettings
 internal sealed class InputSharingSettings
 {
     public bool Enabled { get; set; }
-    public bool StartWithWindows { get; set; } = true;
+    public bool StartWithWindows { get; set; } = false;
     public string WindowsScreenName { get; set; } = "windows-pc";
     public string LinuxScreenName { get; set; } = "linux-pc";
     public string? WindowsProfileId { get; set; }

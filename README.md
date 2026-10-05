@@ -1,11 +1,11 @@
 # Moniswitch
 
-**Switch monitor inputs, keyboard, mouse, and clipboard from one Windows control surface.**
+**Switch monitor inputs, keyboard, and mouse from one Windows control surface.**
 
 Moniswitch is a free, open-source Windows monitor input switcher and software
 KVM. It uses DDC/CI to route individual monitors between HDMI, DisplayPort,
 USB-C, DVI, and other reported inputs. Optional LAN tools move keyboard, mouse,
-clipboard, and a Linux desktop without buying another collection of boxes.
+and a Linux desktop without buying another collection of boxes.
 
 The useful version of the idea is simple: keep every monitor connected, then
 choose which computer gets each screen. The buttons can remain behind the
@@ -20,8 +20,8 @@ monitor where the manufacturer apparently intended them to become folklore.
 - Assigns a changeable keyboard shortcut to a two-input quick route.
 - Makes the shortcut target explicit by Windows display number and monitor
   model in both the main window and notification-area menu.
-- Shares keyboard, mouse, and text clipboard between Windows and Linux through
-  Deskflow and Waynergy.
+- Shares keyboard and mouse between Windows and Linux through Deskflow and
+  Waynergy.
 - Can start with Windows while the Linux user service retries after restarts,
   keeping Input Link available without reopening both tools by hand.
 - Streams one Linux desktop to one selected monitor or across the full Windows
@@ -52,7 +52,7 @@ but keeps showing DisplayPort, go directly to
 
 ## Choose the setup you need
 
-| Setup | Video | Keyboard, mouse, clipboard | Extra software |
+| Setup | Video | Keyboard and mouse | Extra software |
 |---|---|---|---|
 | Display routing | Physical monitor cables | Stays on each computer | None |
 | Display routing + Input Link | Physical monitor cables | Moves between Windows and Linux | Deskflow + Waynergy |
@@ -66,7 +66,7 @@ separate so a broken stream cannot take monitor control down with it.
 | Layer | Job | Connection |
 |---|---|---|
 | DDC/CI router | Reads and changes physical monitor inputs | Windows GPU to monitor |
-| Input Link | Carries keys, pointer events, and text clipboard | Encrypted trusted LAN |
+| Input Link | Carries keys and pointer events | Encrypted trusted LAN |
 | LAN Canvas | Carries a hardware-encoded Linux desktop | Sunshine to Moonlight over LAN |
 
 Monitor discovery runs at launch and when **Scan** is pressed. DDC writes occur
@@ -88,8 +88,7 @@ interrogating the network for sport.
 
 - Both computers on the same trusted local network.
 - Deskflow on Windows.
-- Deskflow on X11 Linux, or Waynergy plus `wl-clipboard` on supported wlroots
-  Wayland compositors.
+- Deskflow on X11 Linux, or Waynergy on supported wlroots Wayland compositors.
 - Optional pre-login Linux input requires the supplied administrator-installed,
   dedicated `uinput` receiver. It is intended only for trusted private networks.
 

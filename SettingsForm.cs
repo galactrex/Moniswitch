@@ -513,8 +513,10 @@ internal sealed class SettingsForm : Form
         pair.RowStyles.Add(new RowStyle(SizeType.Absolute, 19));
         pair.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
-        var sourceA = UiTheme.ControlLabel("Source A");
-        var sourceB = UiTheme.ControlLabel("Source B");
+        var sourceA = UiTheme.ControlLabel(
+            _settingsStore.Current.InputSharing.Enabled ? "Source A / Windows" : "Source A");
+        var sourceB = UiTheme.ControlLabel(
+            _settingsStore.Current.InputSharing.Enabled ? "Source B / Linux" : "Source B");
         sourceB.Margin = new Padding(5, 0, 0, 0);
         _quickInputA.Margin = new Padding(0, 0, 5, 0);
         _quickInputB.Margin = new Padding(5, 0, 0, 0);

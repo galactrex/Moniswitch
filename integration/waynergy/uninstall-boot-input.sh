@@ -11,6 +11,7 @@ systemctl disable --now "$service_name" 2>/dev/null || true
 
 rm -f -- \
     "/etc/systemd/system/$service_name" \
+    "/etc/systemd/system/$service_name.d/50-all-sessions.conf" \
     /etc/udev/rules.d/70-moniswitch-uinput.rules \
     /etc/modules-load.d/moniswitch-uinput.conf
 rm -rf -- /etc/moniswitch-waynergy /usr/local/libexec/moniswitch-waynergy

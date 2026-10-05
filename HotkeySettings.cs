@@ -29,6 +29,10 @@ internal readonly record struct HotkeyBinding(Keys Key, bool Control, bool Alt, 
     public static HotkeyBinding Default => new(Keys.M, Control: true, Alt: true, Shift: false);
     public string DisplayText => HotkeyFormatter.Display(this);
     public string DeskflowText => HotkeyFormatter.Deskflow(this);
+    public string DeskflowLocalCommandText =>
+        HotkeyFormatter.Deskflow(new HotkeyBinding(Keys.F23, false, false, false));
+    public string DeskflowRemoteCommandText =>
+        HotkeyFormatter.Deskflow(new HotkeyBinding(Keys.F24, false, false, false));
 }
 
 internal static class HotkeyFormatter

@@ -1,8 +1,8 @@
 # Runtime footprint
 
-Moniswitch keeps the tray path still. It does not poll displays, the clipboard,
-or the network. Monitor discovery runs at launch and on **Scan**; input and
-clipboard changes arrive as events; LAN Canvas exists only while requested.
+Moniswitch keeps the tray path still. It does not poll displays or the network.
+Monitor discovery runs at launch and on **Scan**; input changes arrive as
+events; LAN Canvas exists only while requested.
 
 ## Reference measurement
 

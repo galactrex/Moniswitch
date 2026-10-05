@@ -3,7 +3,7 @@
 Start at the layer that failed. Moniswitch has three independent paths:
 
 1. DDC/CI changes the monitor input.
-2. Input Link carries keyboard, mouse, and text clipboard.
+2. Input Link carries keyboard and mouse.
 3. LAN Canvas carries video over the network.
 
 Fixing all three at once is not faster. It is only louder.
@@ -85,8 +85,12 @@ physical source control once, return to Windows, then:
   screen's left-to-right position. Selecting it changes the shortcut target
   without routing the display.
 
-Moniswitch observes the shortcut without consuming it so Deskflow can receive
-the same physical keypress.
+Moniswitch observes the shortcut without consuming it. Once the whole shortcut
+is released, it sends Deskflow a modifier-free `F23` signal for Source A /
+Windows or `F24` for Source B / Linux. A shortcut pressed during the startup
+display scan is queued. If the Linux receiver is still reconnecting, Moniswitch
+waits briefly and keeps the monitor on its current input if the link stays
+offline.
 
 ## Keyboard input becomes strange on Linux
 
@@ -109,7 +113,8 @@ an issue.
 ## Input Link does not connect
 
 1. Confirm both computers are on the same trusted LAN.
-2. Confirm **Input Link** points to `deskflow-core.exe`.
+2. Confirm **Input Link** points to Deskflow `1.26.0` build 167 or newer. The file
+   version is visible in the executable's Windows properties.
 3. Confirm the Windows and Linux screen names match the client configuration.
 4. Allow TCP port `24800` from the Linux computer through Windows Firewall.
 5. Copy the server pin again and update Waynergy's fingerprint file.
@@ -127,11 +132,9 @@ If Linux is still showing its login screen, Hyprland has not started and the
 properly installed boot-level `uinput` receiver for pre-login control, or log in
 locally and let the normal user service connect after the compositor starts.
 
-If Waynergy logs `Protocol error` immediately after claiming it connected,
-clipboard startup may have beaten the protocol hello. Running once with
-`--no-clip` can confirm the diagnosis, but it is not the finished fix. Apply
-`integration/waynergy/patch-waynergy-handshake.sh` to Waynergy 0.0.17's
-`src/uSynergy.c`, rebuild it, and keep clipboard enabled.
+If Waynergy logs `Clipboard payload parse error`, confirm both the generated
+Deskflow server configuration and the Waynergy service disable clipboard
+sharing. Clipboard framing errors must not share the keyboard/mouse channel.
 
 The server certificate is pinned by the Linux client. If the Windows TLS
 identity was regenerated, the old pin is supposed to fail. Security behaving as
@@ -139,13 +142,9 @@ designed can be inconvenient in a remarkably authentic way.
 
 ## Clipboard text does not paste
 
-- Install `wl-clipboard` on Wayland Linux.
-- Confirm the Waynergy user service is active.
-- Copy text after the input link is connected.
-- Use `Ctrl+Shift+V` in most Linux terminals and `Ctrl+V` in desktop apps.
-
-Input Link shares text clipboard content. It does not promise file transfer,
-images, rich formatting, or the contents of an application-specific clipboard.
+Clipboard sharing is intentionally disabled for the Waynergy bridge because a
+malformed clipboard payload can take keyboard and mouse down with it. Use the
+two computers' normal clipboard tools independently.
 
 ## Windows OpenSSH Client not found
 

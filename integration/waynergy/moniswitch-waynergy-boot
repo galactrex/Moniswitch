@@ -78,7 +78,9 @@ shutdown()
 trap shutdown INT TERM
 
 while :; do
-    if desktop_ready; then
+    # System-input mode keeps the same kernel devices and connection across
+    # greeters, desktop environments, logouts and session changes.
+    if [ "${MONISWITCH_ALL_SESSIONS:-0}" != 1 ] && desktop_ready; then
         stop_children
         sleep 1
         continue

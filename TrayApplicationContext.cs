@@ -15,12 +15,20 @@ internal sealed class TrayApplicationContext : ApplicationContext
     private SettingsForm? _settingsForm;
     private HotkeyWindow _hotkeyWindow;
     private DeskflowServerController? _deskflowServer;
+    private readonly TaskCompletionSource _monitorInitialization = new(
+        TaskCreationOptions.RunContinuationsAsynchronously);
+    private bool _quickTogglePending;
     private bool _switching;
+    private readonly SemaphoreSlim _inputRouteLock = new(1, 1);
+    private readonly System.Windows.Forms.Timer _inputRecoveryTimer;
+    private bool _inputRecoveryPending;
+    private bool _exiting;
 
     public TrayApplicationContext()
     {
         _monitorService = new MonitorService(refreshImmediately: false);
         _settingsStore = new SettingsStore();
+        _monitorService.RouteSwitchAsync = SwitchInputAndDisplayAsync;
         StartupRegistration.Apply(_settingsStore.Current.InputSharing.StartWithWindows);
         _lanCanvasController = new LanCanvasController(_settingsStore, _monitorService);
         _lanCanvasController.StatusChanged += (_, _) =>
@@ -60,6 +68,9 @@ internal sealed class TrayApplicationContext : ApplicationContext
         };
 
         _hotkeyWindow = CreateHotkeyWindow();
+        _inputRecoveryTimer = new System.Windows.Forms.Timer { Interval = 1000 };
+        _inputRecoveryTimer.Tick += async (_, _) => await RecoverInputRouteAsync();
+        _inputRecoveryTimer.Start();
 
         BuildTrayMenu();
         var hotkeyText = _settingsStore.Current.Hotkey.ToBinding().DisplayText;
@@ -94,6 +105,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         finally
         {
             _switching = false;
+            _monitorInitialization.TrySetResult();
         }
     }
 
@@ -149,15 +161,13 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
     private HotkeyWindow CreateHotkeyWindow()
     {
-        var window = new HotkeyWindow(_settingsStore.Current.Hotkey.ToBinding());
+        var window = new HotkeyWindow(_settingsStore.Current.Hotkey.ToBinding(), _trayMenu);
         window.HotkeyPressed += async (_, _) => await QuickToggleAsync();
         return window;
     }
 
     private void ApplyHotkeyConfiguration()
     {
-        // Deskflow installs its own keyboard hook. Restart it first, then place
-        // Moniswitch's non-consuming observer ahead of it for both directions.
         _hotkeyWindow.Dispose();
         RestartInputSharing();
         _hotkeyWindow = CreateHotkeyWindow();
@@ -399,18 +409,56 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
     private async Task QuickToggleAsync()
     {
+        if (_quickTogglePending)
+        {
+            return;
+        }
+
+        _quickTogglePending = true;
+        try
+        {
+            await QuickToggleCoreAsync();
+        }
+        finally
+        {
+            _quickTogglePending = false;
+        }
+    }
+
+    private async Task QuickToggleCoreAsync()
+    {
+        if (!_monitorInitialization.Task.IsCompleted)
+        {
+            _trayIcon.ShowBalloonTip(
+                1500,
+                "Switch queued",
+                "Finishing the display scan, then Moniswitch will switch.",
+                ToolTipIcon.None);
+            await _monitorInitialization.Task;
+        }
+
         var settings = _settingsStore.Current;
-        if (_switching ||
-            !settings.QuickToggleInputA.HasValue ||
+        if (_switching)
+        {
+            return;
+        }
+
+        if (!settings.QuickToggleInputA.HasValue ||
             !settings.QuickToggleInputB.HasValue ||
             !_monitorService.TryGetQuickToggle(settings.QuickToggleMonitorId, out var monitor))
         {
+            _trayIcon.ShowBalloonTip(
+                3000,
+                "Quick switch unavailable",
+                "Moniswitch could not find the configured display route. Open Moniswitch and press Scan.",
+                ToolTipIcon.Warning);
             return;
         }
 
         var next = monitor.CurrentInput == settings.QuickToggleInputA
             ? settings.QuickToggleInputB.Value
             : settings.QuickToggleInputA.Value;
+
         await SwitchOneAsync(monitor.Id, next);
     }
 
@@ -447,6 +495,110 @@ internal sealed class TrayApplicationContext : ApplicationContext
         {
             _switching = false;
         }
+    }
+
+    private async Task SwitchInputAndDisplayAsync(string monitorId, byte input, Func<Task> switchDisplay)
+    {
+        await _inputRouteLock.WaitAsync();
+        try
+        {
+            await SwitchInputAndDisplayCoreAsync(monitorId, input, switchDisplay);
+        }
+        finally
+        {
+            _inputRouteLock.Release();
+        }
+    }
+
+    private async Task RecoverInputRouteAsync()
+    {
+        if (_exiting || _inputRecoveryPending || _switching || _quickTogglePending ||
+            !_monitorInitialization.Task.IsCompleted || !_settingsStore.Current.InputSharing.Enabled)
+            return;
+
+        _inputRecoveryPending = true;
+        await _inputRouteLock.WaitAsync();
+        try
+        {
+            if (_exiting || _switching || _quickTogglePending) return;
+            var settings = _settingsStore.Current;
+            var monitor = _monitorService.Monitors.FirstOrDefault(item => item.Id == settings.QuickToggleMonitorId);
+            var bridge = _deskflowServer;
+            // Keep the selected video route throughout the greeter-to-desktop
+            // disconnect. Re-enter the replacement receiver when it is ready.
+            if (InputRouteTransaction.NeedsRemoteRecovery(settings.InputSharing.Enabled,
+                    monitor?.CurrentInput, settings.QuickToggleInputB,
+                    bridge?.IsClientStable == true, bridge?.IsRemoteActive == true))
+            {
+                await _hotkeyWindow.WaitForShortcutReleaseAsync();
+                if (_quickTogglePending || _exiting) return;
+                _hotkeyWindow.EnsureFirstInHookChain();
+                await bridge!.SetInputTargetAsync(true);
+                _hotkeyWindow.EnsureFirstInHookChain();
+            }
+        }
+        catch
+        {
+            // The replacement may still be completing its protocol handshake.
+            // Retry on the next tick; never move the monitor during recovery.
+        }
+        finally
+        {
+            _inputRouteLock.Release();
+            _inputRecoveryPending = false;
+        }
+    }
+
+    private async Task SwitchInputAndDisplayCoreAsync(string monitorId, byte input, Func<Task> switchDisplay)
+    {
+        var settings = _settingsStore.Current;
+        if (!settings.InputSharing.Enabled || monitorId != settings.QuickToggleMonitorId ||
+            (input != settings.QuickToggleInputA && input != settings.QuickToggleInputB))
+        {
+            await switchDisplay();
+            return;
+        }
+
+        var remote = input == settings.QuickToggleInputB;
+        var previousRemote = _monitorService.Monitors.First(item => item.Id == monitorId).CurrentInput
+                             == settings.QuickToggleInputB;
+        if (_deskflowServer is not { IsRunning: true }) RestartInputSharing();
+        var bridge = _deskflowServer;
+        if (remote && (bridge is null ||
+            !await bridge.WaitForConnectedClientAsync(TimeSpan.FromSeconds(12))))
+        {
+            throw new InvalidOperationException("Linux input is offline. The monitor was not changed.");
+        }
+
+        // Deskflow installs its hook asynchronously and consumes remote keys.
+        // Put our observer ahead of it before handing the physical devices away.
+        _hotkeyWindow.EnsureFirstInHookChain();
+        if (!_hotkeyWindow.IsRegistered && remote)
+            throw new InvalidOperationException("The return shortcut is unavailable. The monitor was not changed.");
+        await _hotkeyWindow.WaitForShortcutReleaseAsync();
+
+        await InputRouteTransaction.RunAsync(
+            async () =>
+            {
+                if (bridge is { IsRunning: true }) await bridge.SetInputTargetAsync(remote);
+                // Deskflow can reinstall its hooks as it enters relay mode.
+                // Reclaim observer priority after that transition as well.
+                _hotkeyWindow.EnsureFirstInHookChain();
+            },
+            switchDisplay,
+            async () =>
+            {
+                try
+                {
+                    if (bridge is { IsRunning: true }) await bridge.SetInputTargetAsync(previousRemote, force: true);
+                }
+                catch
+                {
+                    // Closing our server releases Windows input even if its
+                    // control channel has stopped responding.
+                    bridge?.Dispose();
+                }
+            });
     }
 
     private async Task ApplyProfileAsync(SwitchProfile profile)
@@ -501,6 +653,8 @@ internal sealed class TrayApplicationContext : ApplicationContext
 
     protected override void ExitThreadCore()
     {
+        _exiting = true;
+        _inputRecoveryTimer.Dispose();
         _trayIcon.Visible = false;
         _trayIcon.Dispose();
         _trayAppIcon.Dispose();
@@ -521,34 +675,70 @@ internal sealed class HotkeyWindow : IDisposable
     private const int WmKeyUp = 0x0101;
     private const int WmSysKeyDown = 0x0104;
     private const int WmSysKeyUp = 0x0105;
+    private const uint LlkhfInjected = 0x00000010;
     private readonly LowLevelKeyboardProc _keyboardProc;
-    private readonly IntPtr _keyboardHook;
+    private IntPtr _keyboardHook;
+    private readonly System.Windows.Forms.Timer _hookRefreshTimer;
     private readonly HotkeyBinding _binding;
+    private readonly Control _dispatcher;
     private bool _controlDown;
     private bool _altDown;
     private bool _shiftDown;
+    private bool _bindingKeyDown;
+    private bool _hotkeyPending;
     private long _lastHotkeyTick;
 
-    public HotkeyWindow(HotkeyBinding binding)
+    public HotkeyWindow(HotkeyBinding binding, Control dispatcher)
     {
         _binding = binding;
+        _dispatcher = dispatcher;
         _keyboardProc = KeyboardHookCallback;
-        _keyboardHook = SetWindowsHookEx(
-            WhKeyboardLl,
-            _keyboardProc,
-            GetModuleHandle(null),
-            0);
+        EnsureFirstInHookChain();
+        _hookRefreshTimer = new System.Windows.Forms.Timer { Interval = 1000 };
+        _hookRefreshTimer.Tick += (_, _) =>
+        {
+            // Preserve tracked keys during refresh. Skipping refresh while a
+            // modifier is down can strand us if Deskflow consumed its key-up.
+            EnsureFirstInHookChain();
+        };
+        _hookRefreshTimer.Start();
+    }
+
+    public void EnsureFirstInHookChain()
+    {
+        var replacement = SetWindowsHookEx(WhKeyboardLl, _keyboardProc, GetModuleHandle(null), 0);
+        if (replacement == IntPtr.Zero) return;
+        var previous = _keyboardHook;
+        _keyboardHook = replacement;
+        if (previous != IntPtr.Zero) UnhookWindowsHookEx(previous);
     }
 
     public bool IsRegistered => _keyboardHook != IntPtr.Zero;
     public event EventHandler? HotkeyPressed;
+
+    public async Task WaitForShortcutReleaseAsync()
+    {
+        var deadline = Environment.TickCount64 + 3000;
+        while (_controlDown || _altDown || _shiftDown || _bindingKeyDown)
+        {
+            if (Environment.TickCount64 >= deadline)
+                throw new InvalidOperationException("Release the shortcut keys, then try again.");
+            await Task.Delay(20);
+        }
+    }
 
     private IntPtr KeyboardHookCallback(int code, IntPtr wParam, IntPtr lParam)
     {
         if (code >= 0)
         {
             var message = wParam.ToInt32();
-            var key = Marshal.ReadInt32(lParam);
+            var hookData = Marshal.PtrToStructure<KeyboardHookData>(lParam);
+            if ((hookData.Flags & LlkhfInjected) != 0)
+            {
+                return CallNextHookEx(_keyboardHook, code, wParam, lParam);
+            }
+
+            var key = (int)hookData.VirtualKey;
             var isDown = message is WmKeyDown or WmSysKeyDown;
             var isUp = message is WmKeyUp or WmSysKeyUp;
 
@@ -564,17 +754,36 @@ internal sealed class HotkeyWindow : IDisposable
             {
                 _shiftDown = isDown || !isUp && _shiftDown;
             }
-            else if (key == (int)_binding.Key &&
-                     isDown &&
-                     _controlDown == _binding.Control &&
-                     _altDown == _binding.Alt &&
-                     _shiftDown == _binding.Shift)
+            else if (key == (int)_binding.Key)
             {
-                var now = Environment.TickCount64;
-                if (now - _lastHotkeyTick >= 600)
+                _bindingKeyDown = isDown || !isUp && _bindingKeyDown;
+                if (isDown &&
+                    _controlDown == _binding.Control &&
+                    _altDown == _binding.Alt &&
+                    _shiftDown == _binding.Shift)
                 {
-                    _lastHotkeyTick = now;
-                    HotkeyPressed?.Invoke(this, EventArgs.Empty);
+                    var now = Environment.TickCount64;
+                    if (now - _lastHotkeyTick >= 600)
+                    {
+                        _lastHotkeyTick = now;
+                        _hotkeyPending = true;
+                    }
+                }
+            }
+
+            if (_hotkeyPending &&
+                !_bindingKeyDown &&
+                !_controlDown &&
+                !_altDown &&
+                !_shiftDown)
+            {
+                _hotkeyPending = false;
+                if (!_dispatcher.IsDisposed && _dispatcher.IsHandleCreated)
+                {
+                    // Leave the low-level hook callback before injecting the
+                    // private signal. Deskflow has then observed every public
+                    // shortcut key-up and sees F23/F24 with no modifiers.
+                    _dispatcher.BeginInvoke(() => HotkeyPressed?.Invoke(this, EventArgs.Empty));
                 }
             }
         }
@@ -586,9 +795,11 @@ internal sealed class HotkeyWindow : IDisposable
 
     public void Dispose()
     {
+        _hookRefreshTimer.Dispose();
         if (_keyboardHook != IntPtr.Zero)
         {
             UnhookWindowsHookEx(_keyboardHook);
+            _keyboardHook = IntPtr.Zero;
         }
     }
 
@@ -617,4 +828,15 @@ internal sealed class HotkeyWindow : IDisposable
         int code,
         IntPtr wParam,
         IntPtr lParam);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct KeyboardHookData
+    {
+        public uint VirtualKey;
+        public uint ScanCode;
+        public uint Flags;
+        public uint Time;
+        public UIntPtr ExtraInfo;
+    }
+
 }

@@ -73,11 +73,11 @@ documented TCP `47984-47990`, TCP `48010`, and UDP `47998-48000` mappings.
 | Canvas off | Moniswitch only | no Sunshine process, no virtual output |
 | Canvas live | one Moonlight process | one Sunshine process and one headless output |
 
-Keyboard, mouse, and clipboard stay on the separate Deskflow/Waynergy link.
+Keyboard and mouse stay on the separate Deskflow/Waynergy link.
 Sunshine input is disabled, so the video path does not create a second input
 stack. Move the Windows pointer through the configured Deskflow screen edge to
-control Linux; the keys, pointer events, and text clipboard then travel through
-that single input link while Moonlight carries video only.
+control Linux; keys and pointer events then travel through that single input
+link while Moonlight carries video only.
 
 Waynergy is rebound automatically after Canvas changes the Linux output
 topology and again when the physical output is restored. This keeps its pointer

@@ -58,6 +58,7 @@ New-Item -ItemType Directory -Path $assetOutput, $toolOutput -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $workspace 'assets\moniswitch-mark.svg') -Destination $assetOutput
 Copy-Item -LiteralPath (Join-Path $workspace 'tools\Disable-RedundantDeskflowService.ps1') -Destination $toolOutput
 Copy-Item -LiteralPath (Join-Path $workspace 'tools\Measure-Idle.ps1') -Destination $toolOutput
+Copy-Item -LiteralPath (Join-Path $workspace 'tools\Enable-LinuxSystemInput.ps1') -Destination $toolOutput
 
 $privacyResult = & (Join-Path $workspace 'tools\Test-ReleasePrivacy.ps1') `
     -BundlePath $bundle `

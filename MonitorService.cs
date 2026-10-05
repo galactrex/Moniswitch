@@ -113,6 +113,7 @@ internal static class InputSourceCatalog
 
 internal sealed class MonitorService : IDisposable
 {
+    public Func<string, byte, Func<Task>, Task>? RouteSwitchAsync { get; set; }
     private const byte InputSourceVcpCode = 0x60;
     private readonly SemaphoreSlim _commandLock = new(1, 1);
     private PhysicalMonitorSet? _monitorSet;
@@ -153,7 +154,7 @@ internal sealed class MonitorService : IDisposable
         await _commandLock.WaitAsync();
         try
         {
-            await Task.Run(() => SwitchCore(monitorId, input));
+            await SwitchWithInputAsync(monitorId, input);
         }
         finally
         {
@@ -166,31 +167,33 @@ internal sealed class MonitorService : IDisposable
         await _commandLock.WaitAsync();
         try
         {
-            await Task.Run(() =>
+            var errors = new List<string>();
+            foreach (var assignment in assignments)
             {
-                var errors = new List<string>();
-                foreach (var assignment in assignments)
+                try
                 {
-                    try
-                    {
-                        SwitchCore(assignment.Key, assignment.Value);
-                    }
-                    catch (Exception exception)
-                    {
-                        errors.Add(exception.Message);
-                    }
+                    await SwitchWithInputAsync(assignment.Key, assignment.Value);
                 }
-
-                if (errors.Count > 0)
+                catch (Exception exception)
                 {
-                    throw new InvalidOperationException(string.Join(Environment.NewLine, errors));
+                    errors.Add(exception.Message);
                 }
-            });
+            }
+            if (errors.Count > 0)
+                throw new InvalidOperationException(string.Join(Environment.NewLine, errors));
         }
         finally
         {
             _commandLock.Release();
         }
+    }
+
+    private Task SwitchWithInputAsync(string monitorId, byte input)
+    {
+        Task SwitchDisplay() => Task.Run(() => SwitchCore(monitorId, input));
+        return RouteSwitchAsync is { } route
+            ? route(monitorId, input, SwitchDisplay)
+            : SwitchDisplay();
     }
 
     public bool TryGetQuickToggle(string? preferredMonitorId, out MonitorSnapshot monitor)
